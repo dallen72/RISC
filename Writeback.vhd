@@ -8,17 +8,16 @@ use ieee.numeric_std.ALL;
 entity Writeback is
   generic (ADDRESS_WIDTH : integer := 8; DATA_WIDTH : integer := 8);
   port(
+    rst : in std_logic;
     clk : in std_logic;
     mem_addr : in std_logic_vector(ADDRESS_WIDTH-1 downto 0); -- from execute
     ALU_output : in std_logic_vector(DATA_WIDTH-1 downto 0); -- from execute
-    mem_wr_en : in std_logic; -- comes from decode, through execute to writeback and back to execute
+    mem_wr_en : in std_logic; -- comes from decode, through execute to writeback
     reg_file_Din_sel : in std_logic; -- comes from decode, through execute to writeback
-    in_reg_file_wr_en : in std_logic; -- comes from decode, through execute to writeback and back to execute
-    in_reg_file_wr_addr : in std_logic_vector(ADDRESS_WIDTH-1 downto 0);
+    reg_file_wr_en : inout std_logic; -- comes from decode, through execute to writeback and back to execute
+    reg_file_wr_addr : out std_logic_vector(ADDRESS_WIDTH-1 downto 0); -- comes from ALU output
   
-    reg_file_Din : out std_logic_vector(DATA_WIDTH-1 downto 0);
-    out_reg_file_wr_en : out std_logic; -- comes from decode, through execute to writeback and back to execute
-    out_reg_file_wr_addr : out std_logic_vector(ADDRESS_WIDTH-1 downto 0)
+    reg_file_Din : out std_logic_vector(DATA_WIDTH-1 downto 0)
   );
 end entity;
 
@@ -47,14 +46,14 @@ Signal sig_mem : memory := (others => (others => '0'));
 
 begin
       
-process(WR, ADDR)
-begin
-  if (WR = '1') then
+  process(WR, ADDR)
+  begin
+    if (WR = '1') then
     sig_mem(to_integer(unsigned(ADDR))) <= DIN;
-  end if;
-  DOUT <= sig_mem(to_integer(unsigned(ADDR)));
+    end if;
+    DOUT <= sig_mem(to_integer(unsigned(ADDR)));
 
-end process;
+  end process;
 end behav;
 
 ------------------------------------------------------------------------------
@@ -77,7 +76,7 @@ begin
     
     
     
-  SYNC : process (clk)
+  SYNC : process (clk, rst)
   begin
     if (clk'event and clk = '1') then
     
@@ -87,9 +86,12 @@ begin
         reg_file_Din <= ALU_output;
       end if;
   
-      out_reg_file_wr_en <= in_reg_file_wr_en;
-      out_reg_file_wr_addr <= in_reg_file_wr_addr;
-
+    end if;
+    
+    if (rst = '1') then
+      reg_file_wr_en <= '0';
+      reg_file_wr_addr <= (others => '0');
+      reg_file_Din <= (others => '0');
     end if;
   end process;
 

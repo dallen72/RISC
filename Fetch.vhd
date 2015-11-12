@@ -14,7 +14,6 @@ instruction_fetch: process(counter)
 begin
   
 -- assumption: offset of branch instructions is in R[y]
-
   
 if(counter = "00000000") then
 instruction <= "0000000000000000";
@@ -564,7 +563,6 @@ else --Increment counter by default
 temp_counter <= temp_counter + "00000001";
 end if;
 counter <= temp_counter;
-
 end if;
 end process;
 end behavior;
@@ -573,7 +571,6 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use ieee.std_logic_unsigned.all;
 use IEEE.NUMERIC_STD.ALL;
-
 entity fetch is --Declare the top-level entity and all major inputs/outputs
 port ( 
 rst : in std_logic;
@@ -598,13 +595,11 @@ offset_enable: in std_logic; --Allow for branch instructions
 offset_value: in std_logic_vector(7 downto 0); --Branch offset added to counter
 counter: out std_logic_vector(7 downto 0));
 end component;
-
 component instruction_memory
 port(
 counter: in std_logic_vector(7 downto 0); --Counter value obtained from PC
 instruction: out std_logic_vector(15 downto 0)); --Fetched Instruction
 end component;
-
 begin --PORT MAP
 pc : program_counter port map ( rst, jump_enable, jump_address, clk, offset_enable, offset_value, sig_counter);
 imem : instruction_memory port map (sig_counter, instruction);

@@ -77,7 +77,7 @@ begin
     
   SYNC : process (clk, rst)
   begin
-    
+
     if (clk'event and clk = '1') then
       
       reg_file_wr_addr <= ALU_output(3 downto 0);

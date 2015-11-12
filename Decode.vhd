@@ -47,11 +47,6 @@ begin
        mem_addr_sel <= "00";
     end if;
 
- --   if (var_opcode = "01011000") then -- MOV Instruction
- --     reg_file_Din_sel <= '1'; -- set to write to R[y]
---    else
---      reg_file_Din_sel <= '0'; -- set to write to R[x]
---    end if;
     
     if ( (var_opcode(7 downto 4) = "1001") or (var_opcode(7 downto 4) = "1011") ) then -- store indirect and store register
       mem_wr_en <= '1';

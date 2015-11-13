@@ -14,8 +14,6 @@ entity Writeback is
     ALU_output : in std_logic_vector(DATA_WIDTH-1 downto 0); -- from execute
     mem_wr_en : in std_logic; -- comes from decode, through execute to writeback
     reg_file_Din_sel : in std_logic; -- comes from decode, through execute to writeback
-    reg_file_wr_addr : out std_logic_vector(3 downto 0); -- comes from ALU output
-  
     reg_file_Din : out std_logic_vector(DATA_WIDTH-1 downto 0)
   );
 end entity;
@@ -80,10 +78,7 @@ begin
 
     if (clk'event and clk = '1') then
       
-      reg_file_wr_addr <= ALU_output(3 downto 0);
-      
       if (rst = '1') then
-        reg_file_wr_addr <= (others => '0');
         reg_file_Din <= (others => '0');
       elsif ( reg_file_Din_sel = '1' ) then
         reg_file_Din <= sig_mem_dout;

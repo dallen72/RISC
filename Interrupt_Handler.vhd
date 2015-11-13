@@ -24,7 +24,7 @@ architecture behav of interrupt_handler is
     
     
     if ( ((intrpt = '1') and (within_intrpt_routine = '0')) or (ret_to_main = '1') or (var_count /= 0) ) then
-      var_count := var_count _ 1
+      var_count := var_count + 1
     elsif (var_count = '0') then
       end_rd_scratchpad <= '0';
       end_wr_scratchpad <= '0';

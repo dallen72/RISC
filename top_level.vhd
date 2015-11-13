@@ -49,7 +49,6 @@ architecture structural of risc_processor is
   signal pipeline_out_two_reg_file_wr_en : std_logic;
   signal pipeline_out_two_reg_wr_addr_sel : std_logic;
   
-  signal sig_reg_wr_addr : std_logic_vector(3 downto 0);
   signal sig_reg_file_Din : std_logic_vector(7 downto 0);
   signal sig_reg_file_wr_en : std_logic;
   
@@ -61,6 +60,8 @@ architecture structural of risc_processor is
   signal pipeline_out_three_mem_wr_en : std_logic;
   signal pipeline_out_three_reg_file_Din_sel : std_logic;
   signal pipeline_out_three_reg_file_wr_en : std_logic;
+  signal pipeline_in_three_reg_file_wr_addr : std_logic_vector(3 downto 0);
+  signal pipeline_out_three_reg_file_wr_addr : std_logic_vector(3 downto 0);
 
 ---------------------------------------------------------------------------------------------------------
 
@@ -95,12 +96,15 @@ begin
       
   execute_stage : entity work.execute
     port map (
+        rst => rst,
         instruction_in => pipeline_out_two_instruction,
         clk => clk,
-        writeEnable => sig_reg_file_wr_en,
-        ALU_output => pipeline_in_three_ALU_out,
+        writeEnable => pipeline_out_three_reg_file_wr_en,
+        output => pipeline_in_three_ALU_out,
         writeback => sig_reg_file_Din,
-        writeAdd => sig_reg_wr_addr
+        writeAdd => pipeline_out_three_reg_file_wr_addr,
+        out_wr_en => pipeline_in_three_reg_file_wr_en,        
+        reg_file_wr_addr => pipeline_in_three_reg_file_wr_addr
       );
       
   writeback_stage : entity work.writeback
@@ -111,8 +115,6 @@ begin
       ALU_output => pipeline_out_three_ALU_out, -- from execute
       mem_wr_en => pipeline_out_two_mem_wr_en, -- comes from decode, through execute to writeback
       reg_file_Din_sel => pipeline_out_three_reg_file_Din_sel, -- comes from decode, through execute to writeback
-      reg_file_wr_addr => sig_reg_wr_addr, -- determined in the writeback from reg_file_Din_sel
-  
       reg_file_Din => sig_reg_file_Din
       );
 
@@ -121,31 +123,63 @@ begin
   begin
     if (clk'event and clk = '1') then
       
-      pipeline_out_one_instruction <= pipeline_in_one_instruction;
+      if (rst = '1') then
+        pipeline_out_one_instruction <= (others => '0');
       
-      pipeline_in_two_instruction <= pipeline_out_one_instruction;
+        pipeline_in_two_instruction <=  (others => '0');
   
-      pipeline_out_two_mem_addr_sel <= pipeline_in_two_mem_addr_sel;
-      pipeline_out_two_instruction <= pipeline_in_two_instruction;
-      pipeline_out_two_jump_en <= pipeline_in_two_jump_en;
-      pipeline_out_two_mem_wr_en <= pipeline_in_two_mem_wr_en;
-      pipeline_out_two_reg_file_Din_sel <= pipeline_in_two_reg_file_Din_sel;
-      pipeline_out_two_reg_file_wr_en <= pipeline_in_two_reg_file_wr_en;
-      pipeline_out_two_reg_wr_addr_sel <= pipeline_in_two_reg_wr_addr_sel;
+        pipeline_out_two_mem_addr_sel <=  (others => '0');
+        pipeline_out_two_instruction <=  (others => '0');
+        pipeline_out_two_jump_en <= '0';
+        pipeline_out_two_mem_wr_en <= '0';
+        pipeline_out_two_reg_file_Din_sel <= '0';
+        pipeline_out_two_reg_file_wr_en <= '0';
+        pipeline_out_two_reg_wr_addr_sel <= '0';
   
-      pipeline_in_three_reg_file_wr_en <= pipeline_out_two_reg_file_wr_en;
-      pipeline_in_three_instruction <= pipeline_out_two_instruction;
+        pipeline_in_three_reg_file_wr_en <= '0';
+        pipeline_in_three_instruction <=  (others => '0');
+        pipeline_in_three_mem_addr <= (others => '0');
+        pipeline_in_three_offset_en <= '0';
+        pipeline_in_three_reg_file_wr_addr <= (others => '0');
   
-      pipeline_out_three_instruction <= pipeline_in_three_instruction;
-      pipeline_out_three_mem_addr <= pipeline_in_three_mem_addr;
-      pipeline_out_three_ALU_out <= pipeline_in_three_ALU_out;
-      pipeline_out_three_jump_en <= pipeline_in_three_jump_en;
-      pipeline_out_three_offset_en <= pipeline_in_three_offset_en;
-      pipeline_out_three_mem_wr_en <= pipeline_in_three_mem_wr_en;
-      pipeline_out_three_reg_file_Din_sel <= pipeline_in_three_reg_file_Din_sel;
-      pipeline_out_three_reg_file_wr_en <= pipeline_in_three_reg_file_wr_en; -- goes back to execute stage
+        pipeline_out_three_instruction <=  (others => '0');
+        pipeline_out_three_mem_addr <=  (others => '0');
+        pipeline_out_three_ALU_out <=  (others => '0');
+        pipeline_out_three_jump_en <= '0';
+        pipeline_out_three_offset_en <=  '0';
+        pipeline_out_three_mem_wr_en <=  '0';
+        pipeline_out_three_reg_file_Din_sel <= '0';
+        pipeline_out_three_reg_file_wr_en <= '0'; -- goes back to execute stage
+        pipeline_out_three_reg_file_wr_addr <= (others => '0');
+        
+        
+      else
+        pipeline_out_one_instruction <= pipeline_in_one_instruction;
       
+        pipeline_in_two_instruction <= pipeline_out_one_instruction;
+  
+        pipeline_out_two_mem_addr_sel <= pipeline_in_two_mem_addr_sel;
+        pipeline_out_two_instruction <= pipeline_in_two_instruction;
+        pipeline_out_two_jump_en <= pipeline_in_two_jump_en;
+        pipeline_out_two_mem_wr_en <= pipeline_in_two_mem_wr_en;
+        pipeline_out_two_reg_file_Din_sel <= pipeline_in_two_reg_file_Din_sel;
+        pipeline_out_two_reg_file_wr_en <= pipeline_in_two_reg_file_wr_en;
+        pipeline_out_two_reg_wr_addr_sel <= pipeline_in_two_reg_wr_addr_sel;
+  
+        pipeline_in_three_reg_file_Din_sel <= pipeline_out_two_reg_file_Din_sel;
+        pipeline_in_three_instruction <= pipeline_out_two_instruction;
+  
+        pipeline_out_three_instruction <= pipeline_in_three_instruction;
+        pipeline_out_three_mem_addr <= pipeline_in_three_mem_addr;
+        pipeline_out_three_ALU_out <= pipeline_in_three_ALU_out;
+        pipeline_out_three_jump_en <= pipeline_in_three_jump_en;
+        pipeline_out_three_offset_en <= pipeline_in_three_offset_en;
+        pipeline_out_three_mem_wr_en <= pipeline_in_three_mem_wr_en;
+        pipeline_out_three_reg_file_Din_sel <= pipeline_in_three_reg_file_Din_sel;
+        pipeline_out_three_reg_file_wr_en <= pipeline_in_three_reg_file_wr_en; -- goes back to execute stage
+      end if;
     end if;
+
   end process;
   
  

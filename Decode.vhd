@@ -7,6 +7,8 @@ entity decoder is
   port (
     rst : in std_logic;
     instruction : in std_logic_vector(15 downto 0); -- comes in from fetch pipeline
+    Rx : out std_logic_vector(3 downto 0);
+    Ry : out std_logic_vector(3 downto 0);
     mem_wr_en : out std_logic; -- goes out to execute
     mem_addr_sel : out std_logic_vector(1 downto 0); -- goes out to execute
     reg_file_Din_sel : out std_logic; -- goes out to execute.Determines if An arithmetic instruction or Load instruction
@@ -16,6 +18,7 @@ entity decoder is
 end decoder;
 
 architecture behav of decoder is
+
 begin
   
   decode : process(instruction)
@@ -59,7 +62,17 @@ begin
     else
       jmp_en <= '0';
     end if;
-
+      
+  --------------------------------------------------------    
+      
+    if(var_opcode(7 downto 4)="0001") then --If add immediate, Rx is in bits 11 - 8.
+      Rx <= instruction(11 downto 8);
+    else  --For non add immediate instructions, Rx is in bits 7 - 4.
+      Rx <= instruction(7 downto 4);
+    end if;
+    Ry <= instruction(3 downto 0);
+    
+------------------------------------------------------------    
 
   end process;
   

@@ -535,6 +535,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use ieee.std_logic_unsigned.all;
 use IEEE.NUMERIC_STD.ALL;
+
 entity program_counter is
 port(
 rst : in std_logic;
@@ -545,16 +546,25 @@ offset_enable: in std_logic; --Allow for branch instructions
 offset_value: in std_logic_vector(7 downto 0); --Branch offset added to counter
 counter: out std_logic_vector(7 downto 0));
 end program_counter;
+
 architecture behavior of program_counter is
 signal temp_counter : std_logic_vector(7 downto 0);
 begin
+
 count: process(jump_enable,jump_address,clk,offset_enable,offset_value, rst)
+variable clk_doubled : std_logic := '0';
 begin
   if (rst = '1') then
     temp_counter <= (others => '0');
   end if;
   
+-- double the counter period  
 if (rising_edge(clk)) then
+  clk_doubled := NOT clk_doubled;
+end if;  
+  
+  
+if ( rising_edge(clk) and (clk_doubled = '1') ) then
 if(jump_enable = '1') then --If jump instruction, jump to specified address
 temp_counter <= jump_address;
 elsif(offset_enable = '1') then --If branch instruction, add offset
@@ -565,6 +575,7 @@ end if;
 counter <= temp_counter;
 end if;
 end process;
+
 end behavior;
 -----------------------------------------------------------------------------------------------------------------
 library IEEE;

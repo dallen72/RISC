@@ -20,14 +20,19 @@ add wave -position insertpoint sim:/risc_processor/pipeline_out_three_offset_en
 add wave -position insertpoint sim:/risc_processor/pipeline_out_three_reg_file_Din_sel
 add wave -position insertpoint sim:/risc_processor/sig_reg_file_Din
 add wave -position insertpoint sim:/risc_processor/sig_jump_en
-add wave -position end  sim:/risc_processor/execute_stage/r_bank/reg
-add wave -position end  sim:/risc_processor/writeback_stage/mem1/sig_mem
-add wave -position 12  sim:/risc_processor/execute_stage/alu_unit/Rx
-add wave -position 13  sim:/risc_processor/execute_stage/alu_unit/Ry
+add wave -radix unsigned -position end  sim:/risc_processor/execute_stage/r_bank/reg
+add wave -radix unsigned -position end  sim:/risc_processor/writeback_stage/mem1/sig_mem
+add wave -position 12  sim:/risc_processor/execute_stage/alu_unit/X
+add wave -position 13  sim:/risc_processor/execute_stage/alu_unit/Y
 add wave -position 14  sim:/risc_processor/execute_stage/alu_unit/instruction_in
 add wave -position 15  sim:/risc_processor/execute_stage/alu_unit/instruction_out
 add wave -position 16  sim:/risc_processor/execute_stage/alu_unit/output
-add wave -position 17  sim:/risc_processor/execute_stage/alu_unit/reg_file_wr_addr
+add wave -position 12  sim:/risc_processor/pipeline_in_three_reg_file_wr_en
+add wave -position end  sim:/risc_processor/writeback_stage/reg_file_wr_addr
+add wave -position end  sim:/risc_processor/pipeline_in_two_Rx
+add wave -position end  sim:/risc_processor/pipeline_in_three_Rx
+add wave -position end  sim:/risc_processor/decode_stage/Rx
+add wave -position end  sim:/risc_processor/decode_stage/Ry
 force -freeze sim:/risc_processor/clk 1 0, 0 {50 ps} -r 100
 run
 force -freeze sim:/risc_processor/rst 1 0

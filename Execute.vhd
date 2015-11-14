@@ -8,30 +8,26 @@ entity execute is --Declare the top-level entity and all major inputs/outputs
           rst : in std_logic;
           instruction_in: in std_logic_vector(15 downto 0);
           clk: in std_logic;
+          Rx, Ry : in std_logic_vector(3 downto 0);
           writeback: in std_logic_vector(7 downto 0);
           writeEnable: in std_logic;
           writeAdd: in std_logic_vector(3 downto 0);
           instruction_out: out std_logic_vector(15 downto 0);
-          output: out std_logic_vector(7 downto 0);
-          out_wr_en : out std_logic;
-          reg_file_wr_addr: out std_logic_vector(3 downto 0)
+          output: out std_logic_vector(7 downto 0)
           );
 end execute;
 
 architecture structural of execute is 
 
-signal Rx, Ry : std_logic_vector(7 downto 0);
+signal sig_X, sig_Y : std_logic_vector(7 downto 0);
 
 component ALU --Declare each component and their respetive inputs/outputs
   port(
-          Rx,Ry: in std_logic_vector(7 downto 0);
-          rst : in std_logic;
+          X,Y: in std_logic_vector(7 downto 0);
           clk: in std_logic;
           instruction_in: in std_logic_vector(15 downto 0);
           instruction_out: out std_logic_vector(15 downto 0);
-          output: out std_logic_vector(7 downto 0);
-          reg_file_wr_en : out std_logic;
-          reg_file_wr_addr: out std_logic_vector(3 downto 0)
+          output: out std_logic_vector(7 downto 0)
           );
 end component;
 
@@ -39,17 +35,25 @@ component register_bank
   port(
         rst : in std_logic;
         instruction_in: in std_logic_vector(15 downto 0);
-        instruction_out: out std_logic_vector(15 downto 0);
         clk: in std_logic;
+        Rx, Ry : in std_logic_vector(3 downto 0);
         writeback: in std_logic_vector (7 downto 0);
         writeEnable: in std_logic;
         writeAdd: in std_logic_vector(3 downto 0);
-        Rx, Ry: out std_logic_vector(7 downto 0));
-      end component;
+        X, Y: out std_logic_vector(7 downto 0));
+end component;
       
-      begin --PORT MAP
-        alu_unit : ALU port map (Rx, Ry, rst, clk, instruction_in, instruction_out, output, out_wr_en, reg_file_wr_addr);
-        r_bank : register_bank port map (rst, instruction_in, instruction_out, clk, writeback, writeEnable, writeAdd, Rx, Ry);
+begin --PORT MAP
+  alu_unit : ALU port map (
+        X => sig_X,
+        Y => sig_Y,
+        clk => clk,
+        instruction_in => instruction_in,
+        instruction_out => instruction_out,
+        output => output
+    );
+        
+  r_bank : register_bank port map (rst, instruction_in, clk, Rx, Ry, writeback, writeEnable, writeAdd, sig_X, sig_Y);
         
 end structural;
       
@@ -61,14 +65,12 @@ use ieee.numeric_std.all;
 
 
 entity ALU is
-  port(Rx,Ry: in std_logic_vector(7 downto 0);
-    rst : in std_logic;
+  port(
+    X,Y: in std_logic_vector(7 downto 0);
     clk: in std_logic;
     instruction_in: in std_logic_vector(15 downto 0);
     instruction_out: out std_logic_vector(15 downto 0);
-    output: out std_logic_vector(7 downto 0);
-    reg_file_wr_en : out std_logic;
-    reg_file_wr_addr : out std_logic_vector(3 downto 0)
+    output: out std_logic_vector(7 downto 0)
     );
   end ALU;
   
@@ -78,95 +80,78 @@ entity ALU is
     CALCULATE:process(clk)
     begin
       
+     
       if(rising_edge(clk)) then
-      
-        instruction_out <= instruction_in;
-      
-        if (rst = '0') then
-          reg_file_wr_en <= '0';
-          output <= (others => '0');
+                            
           
-        elsif(instruction_in(15 downto 8)="00100000") then --Addition. Confirmed Working
-          output <= (Rx + Ry);
-          reg_file_wr_en <= '1';
+        if(instruction_in(15 downto 8)="00100000") then --Addition. Confirmed Working
+          output <= (X + Y);
+          
       
         elsif(instruction_in(15 downto 8)="00100001") then --Subtraction. Confirmed Working
-          output <= (Rx - Ry);
-          reg_file_wr_en <= '1';          
+          output <= (X - Y);         
       
         elsif(instruction_in(15 downto 8)="00110000") then --Increment. Confirmed Working
-          output <= (Rx + "00000001");
-          reg_file_wr_en <= '1';          
+          output <= (X + "00000001");        
       
         elsif(instruction_in(15 downto 8)="00110001") then --Decrement. Confirmed Working
-          output <= (Rx - "00000001");
-          reg_file_wr_en <= '1';          
+          output <= (X - "00000001");       
       
         elsif(instruction_in(15 downto 8)="01000000") then --Left Shift. Confirmed Working
-          output <= std_logic_vector(unsigned(Rx) sll conv_integer(Ry));
-          reg_file_wr_en <= '1';          
+          output <= std_logic_vector(unsigned(X) sll conv_integer(Y)); 
       
         elsif(instruction_in(15 downto 8)="01000001") then --Right Shift. Confirmed Working
-          output <= std_logic_vector(unsigned(Rx) srl conv_integer(Ry));
-          reg_file_wr_en <= '1';          
+          output <= std_logic_vector(unsigned(X) srl conv_integer(Y));       
       
         elsif(instruction_in(15 downto 8)="01010000") then --Logical NOT. Confirmed Working. 
-          output <= (not Rx);
-          reg_file_wr_en <= '1';          
+          output <= (not X);      
       
         elsif(instruction_in(15 downto 8)="01010001") then --Logical NOR. Confirmed Working.
-          output <= (Rx NOR Ry);
-          reg_file_wr_en <= '1';          
+          output <= (X NOR Y);      
     
         elsif(instruction_in(15 downto 8)="01010010") then --Logical NAND. Confirmed Working.
-          output <= (Rx NAND Ry);
-          reg_file_wr_en <= '1';
+          output <= (X NAND Y);
       
         elsif(instruction_in(15 downto 8)="01010011") then --Logical XOR. Confirmed Working.
-          output <= (Rx XOR Ry);
-          reg_file_wr_en <= '1';      
+          output <= (X XOR Y);   
       
         elsif(instruction_in(15 downto 8)="01010100") then --Logical AND. Confirmed Working.
-          output <= (Rx AND Ry);
-          reg_file_wr_en <= '1';          
+          output <= (X AND Y);         
       
         elsif(instruction_in(15 downto 8)="01010101") then --Logical OR. Confirmed Working.
-          output <= (Rx OR Ry);
-          reg_file_wr_en <= '1';          
+          output <= (X OR Y);         
       
         elsif(instruction_in(15 downto 8)="01010110") then --Clear. Confirmed Working.
-          output <= "00000000";
-          reg_file_wr_en <= '1';          
+          output <= "00000000";       
       
         elsif(instruction_in(15 downto 8)="01010111") then --Set. Confirmed Working
-          output <= "11111111";
-          reg_file_wr_en <= '1';          
+          output <= "11111111";         
       
-        elsif((instruction_in(15 downto 8)="01011111") and (Rx < Ry)) then --Set on Less Than. Confirmed Working.
-          output <= "11111111";
-          reg_file_wr_en <= '1';          
+        elsif((instruction_in(15 downto 8)="01011111") and (X < Y)) then --Set on Less Than. Confirmed Working.
+          output <= "11111111";         
         
         elsif(instruction_in(15 downto 12)="0001") then --Add Immediate. Confirmed Working.
-          output <= Rx + instruction_in(7 downto 0);
-          reg_file_wr_en <= '1';          
+          output <= X + instruction_in(7 downto 0);    
           
         elsif(instruction_in(15 downto 8)="01011000") then --Move. Confirmed Working.
-          output <= Rx;
-          reg_file_wr_en <= '1';          
+          output <= X;     
           
-        elsif((instruction_in(15 downto 12)="1101") and (Rx="00000000")) then --Branch If 0. Confirmed Working.
-          output <= Ry;
-          reg_file_wr_en <= '0';          
+        elsif((instruction_in(15 downto 12)="1101") and (X="00000000")) then --Branch If 0. Confirmed Working.
+          output <= Y;      
           
-        elsif((instruction_in(15 downto 12)="1110") and (not(Rx="00000000"))) then --Branch If Not 0. Confirmed Working.
-          output <= Ry;
-          reg_file_wr_en <= '0';          
+        elsif((instruction_in(15 downto 12)="1110") and (not(X="00000000"))) then --Branch If Not 0. Confirmed Working.
+          output <= Y;       
         else
-          output <= (others => '0');
+          output <= (others => '0');               
         end if;
       
       end if;
     
+    end process;
+    
+    SYNC: process(instruction_in)
+    begin
+      instruction_out <= instruction_in;
     end process;
     
   end BEHAVIOR;
@@ -183,12 +168,12 @@ entity register_bank is
   port(
         rst : in std_logic;
         instruction_in: in std_logic_vector(15 downto 0);
-        instruction_out: out std_logic_vector(15 downto 0);
         clk: in std_logic;
+        Rx, Ry : in std_logic_vector(3 downto 0);
         writeback: in std_logic_vector (7 downto 0);
         writeEnable: in std_logic;
         writeAdd: in std_logic_vector(3 downto 0);
-        Rx, Ry: out std_logic_vector(7 downto 0));        
+        X, Y : out std_logic_vector(7 downto 0));        
 end register_bank;
 
 architecture behavior of register_bank is
@@ -196,43 +181,26 @@ architecture behavior of register_bank is
   type vector_array is array(0 to 15) of std_logic_vector(7 downto 0);
   signal reg : vector_array := (others => (others => '0'));
   signal sig_writeAddInt : integer := 0; -- for coverstion to register file index
-  signal sig_RxInt : integer := 0; -- for conversion to Register X output
-  signal sig_RyInt : integer := 0;
+
   
 begin
         
-  find_Rx_Ry: process(clk)
+  find_X_Y: process(clk)
           
   begin
     
     if(rising_edge(clk)) then
       
-      instruction_out <= instruction_in;
-      
       if (rst = '1') then
         reg <= (others => (others => '0'));     
       
       elsif(writeEnable='1') then --Allows overwriting register values
-        
         sig_writeAddInt <= to_integer(unsigned(writeAdd));
-        reg(sig_writeAddInt) <= writeback;   
-        
+        reg(sig_writeAddInt) <= writeback;
       end if;
-        
-  --------------------------------------------------------    
       
-      if(instruction_in(15 downto 12)="0001") then --If add immediate, Rx is in bits 11 - 8.
-        sig_RxInt <= to_integer(unsigned(instruction_in(11 downto 8)));
-        Rx <= reg(sig_RxInt);
-        
-      else  --For non add immediate instructions, Rx is in bits 7 - 4.
-        sig_RxInt <= to_integer(unsigned(instruction_in(7 downto 4)));
-        Rx <= reg(sig_RxInt);
-      end if;
-        
-------------------------------------------------------------
-      sig_RyInt <= to_integer(unsigned(instruction_in(3 downto 0))); --Ry is always in the lowest 4 bits.
-      Ry <= reg(sig_RyInt);
+      X <= reg(to_integer(unsigned(Rx)));
+      Y <= reg(to_integer(unsigned(Ry)));  
   
     end if; 
                

@@ -10,11 +10,15 @@ entity Writeback is
   port(
     rst : in std_logic;
     clk : in std_logic;
+    Rx : in std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);
+    Ry : in std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);
+    opcode : in std_logic_vector(DATA_WIDTH-1 downto 0);    
     mem_addr : in std_logic_vector(ADDRESS_WIDTH-1 downto 0); -- from execute
     ALU_output : in std_logic_vector(DATA_WIDTH-1 downto 0); -- from execute
     mem_wr_en : in std_logic; -- comes from decode, through execute to writeback
     reg_file_Din_sel : in std_logic; -- comes from decode, through execute to writeback
-    reg_file_Din : out std_logic_vector(DATA_WIDTH-1 downto 0)
+    reg_file_Din : out std_logic_vector(DATA_WIDTH-1 downto 0);
+    reg_file_wr_addr : out std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0)      
   );
 end entity;
 
@@ -60,7 +64,6 @@ architecture behav of Writeback is
   signal sig_mem_dout : std_logic_vector(7 downto 0);
 begin
   
-  
 
   mem1 : entity work.MEMORY
     generic map(ADDRESS_WIDTH => ADDRESS_WIDTH, WIDTH => DATA_WIDTH)
@@ -80,9 +83,17 @@ begin
       
       if (rst = '1') then
         reg_file_Din <= (others => '0');
+        reg_file_wr_addr <= (others => '0');
       elsif ( reg_file_Din_sel = '1' ) then
         reg_file_Din <= sig_mem_dout;
+        reg_file_wr_addr <= ALU_output;
       else
+        if (opcode = "01011000") then
+          reg_file_wr_addr <= Ry;
+        else
+          reg_file_wr_addr <= Rx;
+        end if;
+        
         reg_file_Din <= ALU_output;
       end if;
     

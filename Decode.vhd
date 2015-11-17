@@ -6,7 +6,8 @@ use ieee.numeric_std.all;
 entity decoder is
   port (
     rst : in std_logic;
-    instruction : in std_logic_vector(15 downto 0); -- comes in from fetch pipeline
+    clk : in std_logic;
+    instruction_in : in std_logic_vector(15 downto 0); -- comes in from fetch pipeline
     Rx : out std_logic_vector(3 downto 0);
     Ry : out std_logic_vector(3 downto 0);
     mem_wr_en : out std_logic; -- goes out to execute
@@ -18,46 +19,54 @@ entity decoder is
 end decoder;
 
 architecture behav of decoder is
-
+signal instruction : std_logic_vector(15 downto 0);
 begin
   
+  sync : process(clk)
+  begin
+    if (rising_edge(clk)) then
+      instruction <= instruction_in;
+    end if;
+  end process;
+    
+  
   decode : process(instruction)
-  variable var_opcode : std_logic_vector(7 downto 0);
   begin
 
-    var_opcode := instruction(15 downto 8);
-
-
-    if ( (var_opcode(7 downto 6) = "00") or (var_opcode (7 downto 4) = "0101") or (var_opcode(7 downto 4) = "1000") or (var_opcode(7 downto 4) = "1010") ) then
+    if ( (instruction(15 downto 14) = "00") or 
+        (instruction(15 downto 12) = "0100") or
+        (instruction(15 downto 12) = "0101") or 
+        (instruction(15 downto 12) = "1000") or 
+        (instruction(15 downto 12) = "1010") ) then
       reg_file_wr_en <= '1';
     else
       reg_file_wr_en <= '0';
     end if;
     
 
-    if ( (var_opcode(7 downto 4) = "1010") or (var_opcode(7 downto 4) = "1000") ) then -- LD Register, LD Indirect
+    if ( (instruction(15 downto 12) = "1010") or (instruction(15 downto 12) = "1000") ) then -- LD Register, LD Indirect
       reg_file_Din_sel <= '1';
     else
       reg_file_Din_sel <= '0';
     end if;
 
 
-    if (var_opcode(7 downto 4) = "1000") then -- LD Indirect
+    if (instruction(15 downto 12) = "1000") then -- LD Indirect
       mem_addr_sel <= "01"; -- set to Y
-    elsif ( (var_opcode(7 downto 4) = "1010") or (var_opcode(7 downto 4) = "1011") ) then -- LD Register, STR Register
+    elsif ( (instruction(15 downto 12) = "1010") or (instruction(15 downto 12) = "1011") ) then -- LD Register, STR Register
       mem_addr_sel <= "10"; -- set to lower 8 bits of instruction
     else
        mem_addr_sel <= "00";
     end if;
 
     
-    if ( (var_opcode(7 downto 4) = "1001") or (var_opcode(7 downto 4) = "1011") ) then -- store indirect and store register
+    if ( (instruction(15 downto 12) = "1001") or (instruction(15 downto 12) = "1011") ) then -- store indirect and store register
       mem_wr_en <= '1';
     else
       mem_wr_en <= '0';
     end if;
     
-    if (var_opcode(7 downto 4) = "1100") then
+    if (instruction(15 downto 12) = "1100") then
       jmp_en <= '1';
     else
       jmp_en <= '0';
@@ -65,7 +74,7 @@ begin
       
   --------------------------------------------------------    
       
-    if(var_opcode(7 downto 4)="0001") then --If add immediate, Rx is in bits 11 - 8.
+    if(instruction(15 downto 12)="0001") then --If add immediate, Rx is in bits 11 - 8.
       Rx <= instruction(11 downto 8);
     else  --For non add immediate instructions, Rx is in bits 7 - 4.
       Rx <= instruction(7 downto 4);

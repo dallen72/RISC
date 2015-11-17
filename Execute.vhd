@@ -8,6 +8,7 @@ entity execute is --Declare the top-level entity and all major inputs/outputs
           rst : in std_logic;
           instruction_in: in std_logic_vector(15 downto 0);
           clk: in std_logic;
+          clk_stage: in std_logic;
           Rx, Ry : in std_logic_vector(3 downto 0);
           writeback: in std_logic_vector(7 downto 0);
           writeEnable: in std_logic;
@@ -20,11 +21,13 @@ end execute;
 architecture structural of execute is 
 
 signal sig_X, sig_Y : std_logic_vector(7 downto 0);
+signal sig_pulse_writeEnable : std_logic;
 
 component ALU --Declare each component and their respetive inputs/outputs
   port(
           X,Y: in std_logic_vector(7 downto 0);
           clk: in std_logic;
+          clk_stage: in std_logic;
           instruction_in: in std_logic_vector(15 downto 0);
           instruction_out: out std_logic_vector(15 downto 0);
           output: out std_logic_vector(7 downto 0)
@@ -48,12 +51,35 @@ begin --PORT MAP
         X => sig_X,
         Y => sig_Y,
         clk => clk,
+        clk_stage => clk_stage,
         instruction_in => instruction_in,
         instruction_out => instruction_out,
         output => output
     );
         
-  r_bank : register_bank port map (rst, instruction_in, clk, Rx, Ry, writeback, writeEnable, writeAdd, sig_X, sig_Y);
+  r_bank : register_bank port map (rst, instruction_in, clk, Rx, Ry, writeback, sig_pulse_writeEnable, writeAdd, sig_X, sig_Y);
+        
+  SYNC : process (clk)
+  variable var_counter : integer := 2;
+  begin
+    
+    if (clk'event) then
+    if (writeEnable = '1') then
+      
+      if (var_counter MOD 8 = 0) then
+        sig_pulse_writeEnable <= '1';
+      else
+        sig_pulse_writeEnable <= '0';
+      end if;
+      
+      var_counter := var_counter + 1;  
+    
+    else
+      var_counter := 2;
+    end if; 
+    end if; 
+    
+  end process;    
         
 end structural;
       
@@ -68,6 +94,7 @@ entity ALU is
   port(
     X,Y: in std_logic_vector(7 downto 0);
     clk: in std_logic;
+    clk_stage: in std_logic;
     instruction_in: in std_logic_vector(15 downto 0);
     instruction_out: out std_logic_vector(15 downto 0);
     output: out std_logic_vector(7 downto 0)
@@ -77,11 +104,11 @@ entity ALU is
   architecture BEHAVIOR of ALU is
   begin 
     
-    CALCULATE:process(clk)
+    CALCULATE:process(clk_stage)
     begin
       
      
-      if(rising_edge(clk)) then
+      if(rising_edge(clk_stage)) then
                             
           
         if(instruction_in(15 downto 8)="00100000") then --Addition. Confirmed Working
@@ -98,10 +125,10 @@ entity ALU is
           output <= (X - "00000001");       
       
         elsif(instruction_in(15 downto 8)="01000000") then --Left Shift. Confirmed Working
-          output <= std_logic_vector(unsigned(X) sll conv_integer(Y)); 
+          output <= X(6 downto 0) & '0'; 
       
         elsif(instruction_in(15 downto 8)="01000001") then --Right Shift. Confirmed Working
-          output <= std_logic_vector(unsigned(X) srl conv_integer(Y));       
+          output <= '0' & X(7 downto 1);       
       
         elsif(instruction_in(15 downto 8)="01010000") then --Logical NOT. Confirmed Working. 
           output <= (not X);      
@@ -180,7 +207,6 @@ architecture behavior of register_bank is
   
   type vector_array is array(0 to 15) of std_logic_vector(7 downto 0);
   signal reg : vector_array := (others => (others => '0'));
-  signal sig_writeAddInt : integer := 0; -- for coverstion to register file index
 
   
 begin
@@ -195,8 +221,7 @@ begin
         reg <= (others => (others => '0'));     
       
       elsif(writeEnable='1') then --Allows overwriting register values
-        sig_writeAddInt <= to_integer(unsigned(writeAdd));
-        reg(sig_writeAddInt) <= writeback;
+        reg(to_integer(unsigned(writeAdd))) <= writeback;
       end if;
       
       X <= reg(to_integer(unsigned(Rx)));

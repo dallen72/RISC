@@ -20,35 +20,35 @@ instruction <= "0000000000000000";
 elsif(counter = "00000001") then
 instruction <= "0001000100001000";  -- ADD Immediate $r1 ($r1 = 8)
 elsif(counter = "00000010") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000"; 
 elsif(counter = "00000011") then
 instruction <= "0011000000100000";  -- Increment $r2 ($r2 = 1)
 elsif(counter = "00000100") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000"; 
 elsif(counter = "00000101") then
 instruction <= "0100000100010000";  -- Shift Right $r1 ($r1 = 4)
 elsif(counter = "00000110") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00000111") then
 instruction <= "0100000000100000";  -- Shift Left $r2 ($r2 = 2)
 elsif(counter = "00001000") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00001001") then
 instruction <= "0101000000010000";  -- Not $r1,$r1 ($r1 = 251)
 elsif(counter = "00001010") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00001011") then
 instruction <= "0101000100010001";  -- Nor $r1, $r1 ($r1 = 4)
 elsif(counter = "00001100") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00001101") then
 instruction <= "0101001000010010";  -- Nand $r1, $r2 ($r1 = 251)
 elsif(counter = "00001110") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00001111") then
 instruction <= "0011000100010000";  -- decrement $r1 ($r1 = 250)
 elsif(counter = "00010000") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00010001") then
 instruction <= "1101000100010000";  -- Branch if zero $r1, $r1 (no branch)
 elsif(counter = "00010010") then
@@ -56,31 +56,31 @@ instruction <= "1110000000000001";  -- Branch if not zero $r0, $r1 (no branch)
 elsif(counter = "00010011") then
 instruction <= "0101011100010000";  -- Set $r1 ($r1 = 1)
 elsif(counter = "00010100") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00010101") then
 instruction <= "0101011000010000";  -- Clear $r1 ($r1 = 0)
 elsif(counter = "00010110") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00010111") then
 instruction <= "0101111100010010";  -- Set if less than $r1, $r2 ($r1 = 1)
 elsif(counter = "00011000") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00011001") then
 instruction <= "0101010100010010";  -- OR $r1, $r2 ($r1 = 3)
 elsif(counter = "00011010") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00011011") then
 instruction <= "0101010000010010";  -- And $r1, $r2 ($r1 = 2)
 elsif(counter = "00011100") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00011101") then
 instruction <= "0101001100010010";  -- Xor $r1, $r2 ($r1 = 0)
 elsif(counter = "00011110") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00011111") then
 instruction <= "0101100000100001";  -- Move $r1, $r2 ($r1 = $r2 = 2)
 elsif(counter = "00100000") then
-instruction <= "0000000000000000";  -- no op
+instruction <= "0000000000000000";  
 elsif(counter = "00100001") then
 instruction <= "0010000100010010";  -- Subtract $r1, $r2 ($r1 = 0)
 elsif(counter = "00100010") then
@@ -542,6 +542,7 @@ rst : in std_logic;
 jump_enable: in std_logic; --Allow jump to address
 jump_address: in std_logic_vector(7 downto 0); --Address jumped to
 clk: in std_logic;
+clk_stage : in std_logic;
 offset_enable: in std_logic; --Allow for branch instructions
 offset_value: in std_logic_vector(7 downto 0); --Branch offset added to counter
 counter: out std_logic_vector(7 downto 0));
@@ -551,20 +552,15 @@ architecture behavior of program_counter is
 signal temp_counter : std_logic_vector(7 downto 0);
 begin
 
-count: process(jump_enable,jump_address,clk,offset_enable,offset_value, rst)
-variable clk_doubled : std_logic := '0';
+count: process(jump_enable,jump_address,clk_stage,offset_enable,offset_value, rst)
+
 begin
   if (rst = '1') then
     temp_counter <= (others => '0');
   end if;
   
--- double the counter period  
-if (rising_edge(clk)) then
-  clk_doubled := NOT clk_doubled;
-end if;  
   
-  
-if ( rising_edge(clk) and (clk_doubled = '1') ) then
+if ( rising_edge(clk_stage) and (clk_stage = '1') ) then
 if(jump_enable = '1') then --If jump instruction, jump to specified address
 temp_counter <= jump_address;
 elsif(offset_enable = '1') then --If branch instruction, add offset
@@ -588,6 +584,7 @@ rst : in std_logic;
 jump_enable: in std_logic;
 jump_address: in std_logic_vector(7 downto 0);
 clk: in std_logic;
+clk_stage : in std_logic;
 offset_enable: in std_logic;
 offset_value: in std_logic_vector(7 downto 0);
 instruction: out std_logic_vector (15 downto 0));
@@ -602,6 +599,7 @@ rst : in std_logic;
 jump_enable: in std_logic; --Allow jump to address
 jump_address: in std_logic_vector(7 downto 0); --Address jumped to
 clk: in std_logic;
+clk_stage : in std_logic;
 offset_enable: in std_logic; --Allow for branch instructions
 offset_value: in std_logic_vector(7 downto 0); --Branch offset added to counter
 counter: out std_logic_vector(7 downto 0));
@@ -612,6 +610,6 @@ counter: in std_logic_vector(7 downto 0); --Counter value obtained from PC
 instruction: out std_logic_vector(15 downto 0)); --Fetched Instruction
 end component;
 begin --PORT MAP
-pc : program_counter port map ( rst, jump_enable, jump_address, clk, offset_enable, offset_value, sig_counter);
+pc : program_counter port map ( rst, jump_enable, jump_address, clk, clk_stage, offset_enable, offset_value, sig_counter);
 imem : instruction_memory port map (sig_counter, instruction);
 end structural;

@@ -8,6 +8,7 @@ entity risc_processor is
   generic (ADDRESS_WIDTH : integer := 8; DATA_WIDTH : integer := 8);
   port (
     clk : in std_logic;
+    clk_stage : in std_logic;
     rst : in std_logic
     -- add external interrupt input?
   );
@@ -18,6 +19,7 @@ architecture structural of risc_processor is
 --  four stage pipeline (three pipelines)  
 --  pipeline one comes from first stage (fetch), pipeline two from second stage (decode), pipeline three comes from execute
 ---------------------------------------------------------------------------------------------------------
+  
   
   signal pipeline_in_one_instruction : std_logic_vector(15 downto 0) := (others => '0');
   
@@ -87,6 +89,7 @@ begin
       jump_enable => sig_jump_en,
       jump_address => pipeline_out_three_instruction(7 downto 0),
       clk => clk,
+      clk_stage => clk_stage,
       offset_enable => pipeline_out_three_offset_en,
       offset_value => pipeline_out_three_instruction(7 downto 0),
       instruction => pipeline_in_one_instruction
@@ -95,7 +98,8 @@ begin
   decode_stage : entity work.decoder
     port map (
       rst => rst,
-      instruction => pipeline_out_one_instruction,
+      clk => clk_stage,
+      instruction_in => pipeline_out_one_instruction,
       Rx => pipeline_in_two_Rx,
       Ry => pipeline_in_two_Ry,
       mem_wr_en => pipeline_in_two_mem_wr_en,
@@ -110,6 +114,7 @@ begin
         rst => rst,
         instruction_in => pipeline_out_two_instruction,
         clk => clk,
+        clk_stage => clk_stage,
         Rx => pipeline_out_two_Rx,
         Ry => pipeline_out_two_Ry,
         writeEnable => pipeline_out_three_reg_file_wr_en,
@@ -134,9 +139,10 @@ begin
       );
 
 
-  PIPELINE : process (clk)
+
+  PIPELINE : process (clk_stage)
   begin
-    if (clk'event and clk = '1') then
+    if (clk_stage'event and clk_stage = '1') then
       
       if (rst = '1') then
         
@@ -166,7 +172,6 @@ begin
         pipeline_out_three_offset_en <=  '0';
         pipeline_out_three_mem_wr_en <=  '0';
         pipeline_out_three_reg_file_Din_sel <= '0';
-        pipeline_out_three_reg_file_wr_en <= '0'; -- goes back to execute stage
         pipeline_out_three_reg_file_wr_addr <= (others => '0');
         pipeline_out_three_Rx <= (others => '0');
         pipeline_out_three_Ry <= (others => '0');    

@@ -100,7 +100,7 @@ instruction <= x"5010";  -- Not $r1,$r1 ($r1 = 251)
 elsif(counter = "00000110") then
 instruction <= x"5111";  -- Nor $r1, $r1 ($r1 = 4)
 elsif(counter = "00000111") then
-instruction <= x"5212";  -- Nand $r1, $r2 ($r1 = 251)
+instruction <= x"5211";  -- Nand $r1, $r1 ($r1 = 251)
 elsif(counter = "00001000") then
 instruction <= x"3110";  -- decrement $r1 ($r1 = 250)
 elsif(counter = "00001001") then

@@ -73,12 +73,16 @@ begin
       
   --------------------------------------------------------    
       
-    if(instruction(15 downto 12)="0001") then --If add immediate, Rx is in bits 11 - 8.
+    if ( (instruction(15 downto 12)="0001") -- If add immediate, Rx is in bits 11 - 8.
+      or (instruction(15 downto 13) = "101") ) then -- load/store regs
       Rx <= instruction(11 downto 8);
-    else  --For non add immediate instructions, Rx is in bits 7 - 4.
+      Ry <= instruction(3 downto 0);
+    elsif ( (instruction(15 downto 13) = "001") -- Arithmetic
+          or ( instruction(15 downto 13) = "010") -- Logicals
+          or ( instruction(15 downto 13) = "100") ) then -- Indirects
       Rx <= instruction(7 downto 4);
+      Ry <= instruction(3 downto 0);      
     end if;
-    Ry <= instruction(3 downto 0);
     
 ------------------------------------------------------------    
 

@@ -46,6 +46,11 @@ add wave -radix unsigned -position 19  sim:/risc_processor/pipeline_out_three_AL
 add wave -radix hex -position 43  sim:/risc_processor/fetch_stage/instruction_shift_reg
 add wave -radix hex -position 44  sim:/risc_processor/fetch_stage/instruction_Rx_shift_reg
 add wave -position 42  sim:/risc_processor/fetch_stage/sig_delay_bubble
+add wave -position 15  sim:/risc_processor/writeback_stage/reg_file_wr_addr
+add wave -position 17  sim:/risc_processor/pipeline_out_three_reg_file_Din_sel
+add wave -position 17  sim:/risc_processor/pipeline_in_three_reg_file_Din_sel
+add wave -position 17  sim:/risc_processor/pipeline_out_two_reg_file_Din_sel
+add wave -position 17  sim:/risc_processor/pipeline_in_two_reg_file_Din_sel
 force -freeze sim:/risc_processor/clk 1 0, 0 {50 ps} -r 100
 force -freeze sim:/risc_processor/clk_stage 1 0, 0 {200 ps} -r 400
 run

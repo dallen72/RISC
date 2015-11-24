@@ -125,7 +125,7 @@ instruction <= x"5312";  -- Xor $r1, $r2 ($r1 = 0)
 elsif(counter = "00010010") then
 instruction <= x"5821";  -- Move $r2, $r1 ($r1 = $r2 = 2)
 elsif(counter = "00010011") then
-instruction <= x"2121";  -- Subtract $r1, $r2 ($r1 = 0)
+instruction <= x"2112";  -- Subtract $r2, $r1 ($r1 = 0)
 elsif(counter = "00010100") then
 instruction <= x"C032";  -- jump to instruction 50
 elsif(counter = "00010101") then
@@ -663,14 +663,17 @@ if (rising_edge(clk_stage)) then
       
       instruction_shift_reg <= instruction & instruction_shift_reg(47 downto 16);
     
+      -- store the registers which the instructions are being written to
       if(instruction(15 downto 12) = "0001") then --If add immediate, Rx is in bits 11 - 8.
         instruction_Rx_shift_reg <= instruction(11 downto 8) & instruction_Rx_shift_reg(11 downto 4);
       elsif ( (instruction(15 downto 14) = "11") 
               or (instruction(14 downto 12) =  "111")
               or (instruction(15 downto 13) = "100") ) then -- branch instruction, enable interrupts, or load register
         instruction_Rx_shift_reg <= x"0" & instruction_Rx_shift_reg(11 downto 4);
+      elsif (instruction(15 downto 8) = "01011000") then -- move instruction
+        instruction_Rx_shift_reg <= instruction(3 downto 0) & instruction_Rx_shift_reg(11 downto 4);
       else
-        instruction_Rx_shift_reg <= instruction(7 downto 4) & instruction_Rx_shift_reg(11 downto 4);      
+        instruction_Rx_shift_reg <= instruction(7 downto 4) & instruction_Rx_shift_reg(11 downto 4);
       end if;
     else
       sig_bubble_lag <= '1';

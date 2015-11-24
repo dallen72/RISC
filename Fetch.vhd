@@ -616,7 +616,11 @@ if ((bubble_counter > 2) and (sig_delay_bubble = '0') ) then -- if bubble time i
 -- check Rx to set bubble
 elsif ( (sig_bubble = '0') and (counter > 0)
   and (instruction /= "0000000000000000")
-  and (  (instruction(15 downto 14) /= "11") or (instruction(14 downto 12) /=  "111") or (instruction(15 downto 13) /= "100") )-- no op or Rx write instruction
+  and (  (instruction(15 downto 14) /= "11") -- not (branch or reti),
+    or (instruction(14 downto 12) /=  "111") -- not enable interrupts
+    or (instruction(15 downto 12) /= "1001") -- not store indirect
+    or (instruction(15 downto 12) /= "1001") -- not store register
+    )
   and (instruction_Rx_shift_reg(3 downto 0) /= x"0") ) then
   
   if ( (instruction_Rx_shift_reg(3 downto 0) /= x"0")
@@ -664,8 +668,9 @@ if (rising_edge(clk_stage)) then
       instruction_shift_reg <= instruction & instruction_shift_reg(47 downto 16);
     
       -- store the registers which the instructions are being written to
-      if(instruction(15 downto 12) = "0001") then --If add immediate, Rx is in bits 11 - 8.
-        instruction_Rx_shift_reg <= instruction(11 downto 8) & instruction_Rx_shift_reg(11 downto 4);
+      if ( (instruction(15 downto 12) = "0001") --If add immediate, Rx is in bits 11 - 8.
+        or (instruction(15 downto 12) = "1010") ) then -- load register
+          instruction_Rx_shift_reg <= instruction(11 downto 8) & instruction_Rx_shift_reg(11 downto 4);
       elsif ( (instruction(15 downto 14) = "11") 
               or (instruction(14 downto 12) =  "111")
               or (instruction(15 downto 13) = "100") ) then -- branch instruction, enable interrupts, or load register
@@ -695,17 +700,13 @@ begin
     sig_counter_reversed_no_bubble <= '1';
   elsif ( (rising_edge(clk_stage)) and (bubble_counter = 4) ) then
     counter <= counter + "00000001";
+  elsif(instruction(15 downto 12) = "1100") then --If jump instruction, jump to specified address
+    counter <= instruction(7 downto 0);
+  elsif(offset_enable = '1') then --If branch instruction, add offset
+    counter <= counter + offset_value;
   elsif ( rising_edge(clk_stage) and (sig_bubble = '0') ) then
     sig_counter_reversed_no_bubble <= '0';
-    
-    if(jump_enable = '1') then --If jump instruction, jump to specified address
-      counter <= jump_address;
-    elsif(offset_enable = '1') then --If branch instruction, add offset
-      counter <= counter + offset_value;
-    else --Increment counter by default
-      counter <= counter + "00000001";
-    end if;
-    
+    counter <= counter + "00000001";
   end if;
 
 end process;

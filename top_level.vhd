@@ -132,7 +132,7 @@ begin
       Ry => pipeline_out_three_Ry,      
       mem_addr => pipeline_out_three_mem_addr, -- from execute
       ALU_output => pipeline_out_three_ALU_out, -- from execute
-      mem_wr_en => pipeline_out_two_mem_wr_en, -- comes from decode, through execute to writeback
+      mem_wr_en => pipeline_out_three_mem_wr_en, -- comes from decode, through execute to writeback
       reg_file_Din_sel => pipeline_out_three_reg_file_Din_sel, -- comes from decode, through execute to writeback
       reg_file_Din => sig_reg_file_Din,
       reg_file_wr_addr => sig_reg_file_wr_addr
@@ -195,6 +195,7 @@ begin
         pipeline_out_two_reg_file_wr_en <= pipeline_in_two_reg_file_wr_en;
         pipeline_out_two_reg_wr_addr_sel <= pipeline_in_two_reg_wr_addr_sel;
   
+        pipeline_in_three_mem_wr_en <= pipeline_out_two_mem_wr_en;
         pipeline_in_three_Rx <= pipeline_out_two_Rx;    
         pipeline_in_three_Ry <= pipeline_out_two_Ry;   
         pipeline_in_three_reg_file_Din_sel <= pipeline_out_two_reg_file_Din_sel;

@@ -64,4 +64,4 @@ run
 run
 run
 run
-run 8000 ps
+run 80000 ps

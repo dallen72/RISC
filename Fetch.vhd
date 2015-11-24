@@ -65,6 +65,7 @@ signal instruction : std_logic_vector(15 downto 0);
 signal instruction_shift_reg : std_logic_vector(47 downto 0) := (others => '0'); -- shifts last three instructions
 signal instruction_Rx_shift_reg : std_logic_vector(11 downto 0) := (others => '0'); -- shifts Rx's of last three instructions
 signal bubble_counter : integer := 0;
+signal sig_bubble_lag : std_logic := '1'; -- for only shifting one instruction after a bubble
 
 begin --PORT MAP
  
@@ -104,29 +105,29 @@ instruction <= x"5211";  -- Nand $r1, $r1 ($r1 = 251)
 elsif(counter = "00001000") then
 instruction <= x"3110";  -- decrement $r1 ($r1 = 250)
 elsif(counter = "00001001") then
-instruction <= "1101000100010000";  -- Branch if zero $r1, $r1 (no branch)
+instruction <= x"D011";  -- Branch if zero $r1 (no branch)
 elsif(counter = "00001010") then
-instruction <= "1110000000000001";  -- Branch if not zero $r0, $r1 (no branch)
+instruction <= x"E011";  -- Branch if not zero $r0, $r1 (no branch)
 elsif(counter = "00001011") then
-instruction <= "0101011100010000";  -- Set $r1 ($r1 = 1)
+instruction <= x"5710";  -- Set $r1 ($r1 = 255)
 elsif(counter = "00001100") then
-instruction <= "0101011000010000";  -- Clear $r1 ($r1 = 0)
+instruction <= x"5610";  -- Clear $r1 ($r1 = 0)
 elsif(counter = "00001101") then
-instruction <= "0101111100010010";  -- Set if less than $r1, $r2 ($r1 = 1)
+instruction <= x"5F12";  -- Set if less than $r1, $r2 ($r1 = 1)
 elsif(counter = "00001110") then
-instruction <= "0101010100010010";  -- OR $r1, $r2 ($r1 = 3)
+instruction <= x"1102"; -- ADDI: $r1 += 2 ($r1 = 1)
 elsif(counter = "00001111") then
-instruction <= "0101010000010010";  -- And $r1, $r2 ($r1 = 2)
+instruction <= x"5512";  -- OR $r1, $r2 ($r1 = 3)
 elsif(counter = "00010000") then
-instruction <= "0101001100010010";  -- Xor $r1, $r2 ($r1 = 0)
+instruction <= x"5412";  -- And $r1, $r2 ($r1 = 2)
 elsif(counter = "00010001") then
-instruction <= "0101100000100001";  -- Move $r1, $r2 ($r1 = $r2 = 2)
+instruction <= x"5312";  -- Xor $r1, $r2 ($r1 = 0)
 elsif(counter = "00010010") then
-instruction <= "0010000100010010";  -- Subtract $r1, $r2 ($r1 = 0)
+instruction <= x"5821";  -- Move $r2, $r1 ($r1 = $r2 = 2)
 elsif(counter = "00010011") then
-instruction <= "1100000000110010";  -- jump to instruction 50
+instruction <= x"2121";  -- Subtract $r1, $r2 ($r1 = 0)
 elsif(counter = "00010100") then
-instruction <= "0000000000000000";  
+instruction <= x"C032";  -- jump to instruction 50
 elsif(counter = "00010101") then
 instruction <= "0000000000000000";
 elsif(counter = "00010110") then
@@ -186,15 +187,15 @@ instruction <= "0000000000000000";
 elsif(counter = "00110001") then
 instruction <= "0000000000000000";
 elsif(counter = "00110010") then
-instruction <= "1011001000000001";  -- Store $r2, 1 (MEM[1] = 2)
+instruction <= x"B201";  -- Store $r2, 1 (MEM[1] = 2)
 elsif(counter = "00110011") then
-instruction <= "1010000100000001";  -- Load $r1 ($r1 = 2)
+instruction <= x"A101";  -- Load $r1 ($r1 = 2)
 elsif(counter = "00110100") then
-instruction <= "0010000000010010";  -- Add $r1, $r2 ($r1 = 4)
+instruction <= x"2012";  -- Add $r1, $r2 ($r1 = 4)
 elsif(counter = "00110101") then
-instruction <= "1001000000010010";  -- Store Indirect $r1, $r2 (MEM[4] = 2)
+instruction <= x"9012";  -- Store Indirect $r1, $r2 (MEM[4] = 2)
 elsif(counter = "00110110") then
-instruction <= "1000000000110001";  -- Load Indirect $r3, $r1 ($r3 = 2)
+instruction <= x"8031";  -- Load Indirect $r3, $r1 ($r3 = 2)
 elsif(counter = "00110111") then
 instruction <= "0000000000000000";
 elsif(counter = "00111000") then
@@ -614,10 +615,13 @@ if ((bubble_counter > 2) and (sig_delay_bubble = '0') ) then -- if bubble time i
   bubble_counter <= 0;
 -- check Rx to set bubble
 elsif ( (sig_bubble = '0') and (counter > 0)
-and (instruction /= "0000000000000000")
-and (instruction_Rx_shift_reg(3 downto 0) /= x"0") ) then
-  if ( (instruction_Rx_shift_reg(7 downto 4) = instruction_Rx_shift_reg(11 downto 8))
-  or (instruction_Rx_shift_reg(3 downto 0) = instruction_Rx_shift_reg(11 downto 8)) ) then
+  and (instruction /= "0000000000000000")
+  and (  (instruction(15 downto 14) /= "11") or (instruction(14 downto 12) /=  "111") or (instruction(15 downto 13) /= "100") )-- no op or Rx write instruction
+  and (instruction_Rx_shift_reg(3 downto 0) /= x"0") ) then
+  
+  if ( (instruction_Rx_shift_reg(3 downto 0) /= x"0")
+     and ( (instruction_Rx_shift_reg(3 downto 0) = instruction_Rx_shift_reg(11 downto 8) )
+        or (instruction_Rx_shift_reg(3 downto 0) = instruction_Rx_shift_reg(7 downto 4) ) ) ) then
     sig_bubble <= '1';
     sig_delay_bubble <= '1';
   end if; 
@@ -650,14 +654,26 @@ end process;
 shift_instructions: process (clk_stage)
 begin
 if (rising_edge(clk_stage)) then
-  
   if ( (sig_bubble = '0') or (bubble_counter > 3) ) then
+    if ( (sig_bubble_lag = '1') or (bubble_counter > 3) ) then
+      
+      if (bubble_counter > 3) then
+        sig_bubble_lag <= '0';
+      end if;
+      
+      instruction_shift_reg <= instruction & instruction_shift_reg(47 downto 16);
     
-    instruction_shift_reg <= instruction & instruction_shift_reg(47 downto 16);
-    if(instruction(15 downto 12) = "0001") then --If add immediate, Rx is in bits 11 - 8.
-      instruction_Rx_shift_reg <= instruction(11 downto 8) & instruction_Rx_shift_reg(11 downto 4);
+      if(instruction(15 downto 12) = "0001") then --If add immediate, Rx is in bits 11 - 8.
+        instruction_Rx_shift_reg <= instruction(11 downto 8) & instruction_Rx_shift_reg(11 downto 4);
+      elsif ( (instruction(15 downto 14) = "11") 
+              or (instruction(14 downto 12) =  "111")
+              or (instruction(15 downto 13) = "100") ) then -- branch instruction, enable interrupts, or load register
+        instruction_Rx_shift_reg <= x"0" & instruction_Rx_shift_reg(11 downto 4);
+      else
+        instruction_Rx_shift_reg <= instruction(7 downto 4) & instruction_Rx_shift_reg(11 downto 4);      
+      end if;
     else
-      instruction_Rx_shift_reg <= instruction(7 downto 4) & instruction_Rx_shift_reg(11 downto 4);
+      sig_bubble_lag <= '1';
     end if;
   end if;
 end if;

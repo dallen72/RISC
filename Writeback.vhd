@@ -86,7 +86,7 @@ begin
         reg_file_wr_addr <= (others => '0');
       elsif ( reg_file_Din_sel = '1' ) then
         reg_file_Din <= sig_mem_dout;
-        reg_file_wr_addr <= ALU_output;
+        reg_file_wr_addr <= ALU_output(3 downto 0);
       else
         if (opcode = "01011000") then
           reg_file_wr_addr <= Ry;

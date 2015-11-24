@@ -79,7 +79,7 @@ architecture structural of risc_processor is
   signal sig_to_exec_reg_file_wr_address : std_logic_vector(ADDRESS_WIDTH-1 downto 0);
   signal sig_jump_en : std_logic;
   signal sig_jump_addr : std_logic_vector(ADDRESS_WIDTH-1 downto 0);
-
+  signal sig_ALU_out : std_logic_vector(7 downto 0) := (others => '0');
 
 begin
 
@@ -92,7 +92,7 @@ begin
       clk_stage => clk_stage,
       offset_enable => pipeline_out_three_offset_en,
       offset_value => pipeline_out_three_instruction(7 downto 0),
-      instruction => pipeline_in_one_instruction
+      out_instruction => pipeline_in_one_instruction
       );
       
   decode_stage : entity work.decoder
@@ -117,10 +117,10 @@ begin
         clk_stage => clk_stage,
         Rx => pipeline_out_two_Rx,
         Ry => pipeline_out_two_Ry,
-        writeEnable => pipeline_out_three_reg_file_wr_en,
-        output => pipeline_in_three_ALU_out,
         writeback => sig_reg_file_Din,
-        writeAdd => sig_reg_file_wr_addr  
+        writeEnable => pipeline_out_three_reg_file_wr_en,
+        writeAdd => sig_reg_file_wr_addr,  
+        output => sig_ALU_out
       );
       
   writeback_stage : entity work.writeback
@@ -139,6 +139,7 @@ begin
       );
 
 
+  
 
   PIPELINE : process (clk_stage)
   begin
@@ -176,7 +177,8 @@ begin
         pipeline_out_three_Rx <= (others => '0');
         pipeline_out_three_Ry <= (others => '0');    
         
-                sig_jump_en <= '0';
+        sig_jump_en <= '0';
+        pipeline_in_three_ALU_out <= (others => '0');
         
       else
         pipeline_out_one_instruction <= pipeline_in_one_instruction;
@@ -198,6 +200,7 @@ begin
         pipeline_in_three_reg_file_Din_sel <= pipeline_out_two_reg_file_Din_sel;
         pipeline_in_three_instruction <= pipeline_out_two_instruction;
         pipeline_in_three_reg_file_wr_en <= pipeline_out_two_reg_file_wr_en;
+        pipeline_in_three_ALU_out <= sig_ALU_out;
   
         pipeline_out_three_Rx <= pipeline_in_three_Rx;      
         pipeline_out_three_Ry <= pipeline_in_three_Ry;    

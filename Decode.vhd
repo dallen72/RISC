@@ -29,11 +29,10 @@ begin
     end if;
   end process;
     
-  
   decode : process(instruction)
   begin
 
-    if ( (instruction(15 downto 14) = "00") or 
+    if ( ((instruction(15 downto 14) = "00") and (not(instruction = "0000000000000000"))) or 
         (instruction(15 downto 12) = "0100") or
         (instruction(15 downto 12) = "0101") or 
         (instruction(15 downto 12) = "1000") or 
@@ -82,6 +81,7 @@ begin
     Ry <= instruction(3 downto 0);
     
 ------------------------------------------------------------    
+
 
   end process;
   

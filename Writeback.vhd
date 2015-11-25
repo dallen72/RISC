@@ -119,28 +119,32 @@ begin
         sig_mem_Din <= X;        
       end if;
       
+      
+      
+      
       if (rst = '1') then
         reg_file_Din <= (others => '0');
         reg_file_wr_addr <= (others => '0');
-      elsif ( (reg_file_Din_sel = '1') and (opcode /= x"00") ) then
-        reg_file_Din <= sig_mem_dout;
+      elsif ( (opcode /= x"00") ) then
         
-        if ( (opcode(7 downto 4) = x"8") -- LD indirect
-          or (opcode(7 downto 4) = x"A") ) then -- LD Reg
-          reg_file_wr_addr <= Rx;
-        else
+        if ( (opcode = x"56") -- Clear
+          or (opcode = x"57") -- Set
+          or (opcode = x"5F") ) then-- Set if less than
+          
           reg_file_wr_addr <= ALU_output(3 downto 0);
-        end if;
-        
-      elsif (opcode /= x"00") then
-        if ( (opcode = x"58")  ) then -- move
+          
+        elsif (opcode = x"58") then -- move
           reg_file_wr_addr <= Ry;
         else
-          reg_file_wr_addr <= Rx;
+          reg_file_wr_addr <= Rx; -- all other instructions             
         end if;
-        
-        reg_file_Din <= ALU_output;
       end if;
+    
+      if (reg_file_Din_sel = '1') then
+        reg_file_Din <= sig_mem_dout;
+      else
+        reg_file_Din <= ALU_output;
+      end if;        
     
     end if;
     

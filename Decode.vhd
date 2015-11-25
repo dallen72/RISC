@@ -14,7 +14,8 @@ entity decoder is
     mem_addr_sel : out std_logic_vector(1 downto 0); -- goes out to execute
     reg_file_Din_sel : out std_logic; -- goes out to execute.Determines if An arithmetic instruction or Load instruction
     jmp_en : out std_logic; -- goes out to execute
-    reg_file_wr_en : out std_logic -- goes out to execute
+    reg_file_wr_en : out std_logic; -- goes out to execute
+    mem_rd_en : out std_logic
   );
 end decoder;
 
@@ -29,45 +30,59 @@ begin
     end if;
   end process;
     
-  decode : process(instruction)
+  decode : process(instruction, rst)
   begin
 
+  if (rst = '1') then
+    mem_wr_en <= '0';
+    mem_rd_en <= '0';
+    jmp_en <= '0';
+    reg_file_wr_en <= '0';
+  else
+
     if ( ((instruction(15 downto 14) = "00") and (not(instruction = "0000000000000000"))) or 
-        (instruction(15 downto 12) = "0100") or
-        (instruction(15 downto 12) = "0101") or 
-        (instruction(15 downto 12) = "1000") or 
-        (instruction(15 downto 12) = "1010") ) then
+        (instruction(15 downto 12) = x"4") or
+        (instruction(15 downto 12) = x"5") or 
+        (instruction(15 downto 12) = x"8") or 
+        (instruction(15 downto 12) = x"A") ) then
       reg_file_wr_en <= '1';
     else
       reg_file_wr_en <= '0';
     end if;
     
 
-    if ( (instruction(15 downto 12) = "1010") or (instruction(15 downto 12) = "1000") ) then -- LD Register, LD Indirect
-      reg_file_Din_sel <= '1';
-    else
-      reg_file_Din_sel <= '0';
-    end if;
-
-
-    if (instruction(15 downto 12) = "1000") then -- LD Indirect
+    if (instruction(15 downto 12) = x"8") then -- LD indirect
       mem_addr_sel <= "01"; -- set to Y
-    elsif (instruction(15 downto 12) = "1001") then -- ST Indirect
-      mem_addr_sel <= "10";
-    elsif ( (instruction(15 downto 12) = "1010") or (instruction(15 downto 12) = "1011") ) then -- LD Register, STR Register
-      mem_addr_sel <= "11"; -- set to lower 8 bits of instruction
-    else
-      mem_addr_sel <= "00";
-    end if;
-
-    
-    if ( (instruction(15 downto 12) = "1001") or (instruction(15 downto 12) = "1011") ) then -- store indirect and store register
-      mem_wr_en <= '1';
-    else
       mem_wr_en <= '0';
+      mem_rd_en <= '1';
+      reg_file_Din_sel <= '1';    
+       
+    elsif (instruction(15 downto 12) = x"9") then -- ST indirect
+      mem_addr_sel <= "10"; -- set to X
+      mem_wr_en <= '1';
+      mem_rd_en <= '0';     
+      reg_file_Din_sel <= '0';
+       
+    elsif (instruction(15 downto 12) = x"A") then -- LD Reg
+      mem_addr_sel <= "11"; -- set to lower 8 bits of instruction
+      mem_wr_en <= '0';
+      mem_rd_en <= '1';  
+      reg_file_Din_sel <= '1'; 
+         
+    elsif (instruction(15 downto 12) = x"B") then -- ST Reg
+      mem_addr_sel <= "11"; -- set to lower 8 bits of instruction
+      mem_wr_en <= '1';
+      mem_rd_en <= '0';
+      reg_file_Din_sel <= '0';      
+            
+    elsif (instruction(15 downto 12) = x"C") then
+      mem_wr_en <= '0';  
+      mem_rd_en <= '0';  
+      reg_file_Din_sel <= '0';      
+              
     end if;
     
-    if (instruction(15 downto 12) = "1100") then
+    if (instruction(15 downto 12) = x"C") then -- jump/branch instructions
       jmp_en <= '1';
     else
       jmp_en <= '0';
@@ -85,6 +100,7 @@ begin
       Rx <= instruction(7 downto 4);
       Ry <= instruction(3 downto 0);      
     end if;
+  end if;
     
 ------------------------------------------------------------    
 

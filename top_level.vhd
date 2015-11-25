@@ -32,6 +32,8 @@ architecture structural of risc_processor is
   signal pipeline_in_two_reg_file_Din_sel : std_logic;
   signal pipeline_in_two_reg_file_wr_en : std_logic;
   signal pipeline_in_two_reg_wr_addr_sel : std_logic;
+  signal pipeline_in_two_mem_rd_en : std_logic;
+ 
   
   signal pipeline_in_three_Rx : std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);      
   signal pipeline_in_three_Ry : std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);    
@@ -43,6 +45,10 @@ architecture structural of risc_processor is
   signal pipeline_in_three_mem_wr_en : std_logic;
   signal pipeline_in_three_reg_file_Din_sel : std_logic;
   signal pipeline_in_three_reg_file_wr_en : std_logic;
+  signal pipeline_in_three_X : std_logic_vector(7 downto 0);
+  signal pipeline_in_three_Y : std_logic_vector(7 downto 0);  
+  signal pipeline_in_three_reg_file_wr_addr : std_logic_vector(3 downto 0);  
+  signal pipeline_in_three_mem_rd_en : std_logic;  
   
 --- in and out signals to simulate registers (in pipeline process)
   signal pipeline_out_one_instruction : std_logic_vector(15 downto 0);
@@ -56,6 +62,7 @@ architecture structural of risc_processor is
   signal pipeline_out_two_reg_file_Din_sel : std_logic;
   signal pipeline_out_two_reg_file_wr_en : std_logic;
   signal pipeline_out_two_reg_wr_addr_sel : std_logic;
+  signal pipeline_out_two_mem_rd_en : std_logic;  
   
   signal sig_reg_file_Din : std_logic_vector(7 downto 0);
   signal sig_reg_file_wr_en : std_logic;
@@ -71,8 +78,10 @@ architecture structural of risc_processor is
   signal pipeline_out_three_mem_wr_en : std_logic;
   signal pipeline_out_three_reg_file_Din_sel : std_logic;
   signal pipeline_out_three_reg_file_wr_en : std_logic;
-  signal pipeline_in_three_reg_file_wr_addr : std_logic_vector(3 downto 0);
   signal pipeline_out_three_reg_file_wr_addr : std_logic_vector(3 downto 0);
+  signal pipeline_out_three_X : std_logic_vector(7 downto 0);
+  signal pipeline_out_three_Y : std_logic_vector(7 downto 0);
+  signal pipeline_out_three_mem_rd_en : std_logic;    
 
 ---------------------------------------------------------------------------------------------------------
 
@@ -106,7 +115,8 @@ begin
       mem_addr_sel => pipeline_in_two_mem_addr_sel,
       reg_file_Din_sel => pipeline_in_two_reg_file_Din_sel,
       jmp_en => pipeline_in_two_jump_en,
-      reg_file_wr_en => pipeline_in_two_reg_file_wr_en
+      reg_file_wr_en => pipeline_in_two_reg_file_wr_en,
+      mem_rd_en => pipeline_in_two_mem_rd_en
       );
       
   execute_stage : entity work.execute
@@ -122,7 +132,9 @@ begin
         writeEnable => pipeline_out_three_reg_file_wr_en,
         writeAdd => sig_reg_file_wr_addr,  
         output => sig_ALU_out,
-        mem_addr => pipeline_in_three_mem_addr
+        mem_addr => pipeline_in_three_mem_addr,
+        X => pipeline_in_three_X,
+        Y => pipeline_in_three_Y
       );
       
   writeback_stage : entity work.writeback
@@ -131,8 +143,11 @@ begin
       clk => clk,
       opcode => pipeline_out_three_instruction(15 downto 8),
       Rx => pipeline_out_three_Rx,
-      Ry => pipeline_out_three_Ry,      
+      Ry => pipeline_out_three_Ry,  
+      X => pipeline_out_three_X,
+      Y => pipeline_out_three_Y,    
       mem_addr => pipeline_out_three_mem_addr, -- from execute
+      mem_rd_en => pipeline_out_three_mem_rd_en,
       ALU_output => pipeline_out_three_ALU_out, -- from execute
       mem_wr_en => pipeline_out_three_mem_wr_en, -- comes from decode, through execute to writeback
       reg_file_Din_sel => pipeline_out_three_reg_file_Din_sel, -- comes from decode, through execute to writeback
@@ -195,6 +210,7 @@ begin
         pipeline_out_two_reg_file_Din_sel <= pipeline_in_two_reg_file_Din_sel;
         pipeline_out_two_reg_file_wr_en <= pipeline_in_two_reg_file_wr_en;
         pipeline_out_two_reg_wr_addr_sel <= pipeline_in_two_reg_wr_addr_sel;
+        pipeline_out_two_mem_rd_en <= pipeline_in_two_mem_rd_en;            
   
         pipeline_in_three_mem_wr_en <= pipeline_out_two_mem_wr_en;
         pipeline_in_three_Rx <= pipeline_out_two_Rx;    
@@ -203,6 +219,7 @@ begin
         pipeline_in_three_instruction <= pipeline_out_two_instruction;
         pipeline_in_three_reg_file_wr_en <= pipeline_out_two_reg_file_wr_en;
         pipeline_in_three_ALU_out <= sig_ALU_out;
+        pipeline_in_three_mem_rd_en <= pipeline_out_two_mem_rd_en;
   
         pipeline_out_three_Rx <= pipeline_in_three_Rx;      
         pipeline_out_three_Ry <= pipeline_in_three_Ry;    
@@ -214,6 +231,9 @@ begin
         pipeline_out_three_mem_wr_en <= pipeline_in_three_mem_wr_en;
         pipeline_out_three_reg_file_Din_sel <= pipeline_in_three_reg_file_Din_sel;
         pipeline_out_three_reg_file_wr_en <= pipeline_in_three_reg_file_wr_en; -- goes back to execute stage
+        pipeline_out_three_X <= pipeline_in_three_X;
+        pipeline_out_three_Y <= pipeline_in_three_Y; 
+        pipeline_out_three_mem_rd_en <= pipeline_in_three_mem_rd_en;       
       end if;
     end if;
 

@@ -15,7 +15,8 @@ entity execute is --Declare the top-level entity and all major inputs/outputs
           writeEnable: in std_logic;
           writeAdd: in std_logic_vector(3 downto 0);
           output: out std_logic_vector(7 downto 0);
-          mem_addr: out std_logic_vector(7 downto 0)
+          mem_addr: out std_logic_vector(7 downto 0);
+          X, Y : out std_logic_vector(7 downto 0)
           );
 end execute;
 
@@ -50,20 +51,17 @@ begin --PORT MAP
   MUX: process (clk)
   begin
     
-    if (rising_edge(clk)) then
+    if (rising_edge(clk) and (instruction_in /= x"0000") ) then
       
-    if (mem_addr_sel = "01") then -- LD Indirect
-      mem_addr <= sig_Y; -- set to Y
-    elsif (mem_addr_sel = "10") then -- ST Indirect
-      mem_addr <= sig_X;
-    elsif (mem_addr_sel = "11") then -- LD Register, STR Register
-      mem_addr <= instruction_in(7 downto 0); -- set to lower 8 bits of instruction
-    else
-      mem_addr <= (others => '0');
-    end if;
-      
-    end if;   
+      if (mem_addr_sel = "01") then -- LD Indirect
+        mem_addr <= sig_Y; -- set to Y
+      elsif (mem_addr_sel = "10") then -- ST Indirect
+        mem_addr <= sig_X;
+      elsif (mem_addr_sel = "11") then -- LD Register, STR Register
+        mem_addr <= instruction_in(7 downto 0); -- set to lower 8 bits of instruction   
+      end if;   
   
+    end if;
   end process;
         
   -- process to pulse the register file write enable        
@@ -72,6 +70,9 @@ begin --PORT MAP
   begin
     
     if (clk'event) then
+      X <= sig_X;
+      Y <= sig_Y;
+      
       if (writeEnable = '1') then
         if (var_counter MOD 8 = 0) then
           sig_pulse_writeEnable <= '1';
@@ -113,7 +114,7 @@ entity ALU is
     begin
       
      
-      if(rising_edge(clk)) then
+      if(rising_edge(clk) and (instruction_in /= x"0000") ) then
                             
           
         if(instruction_in(15 downto 8)="00100000") then --Addition. Confirmed Working
@@ -172,11 +173,7 @@ entity ALU is
           output <= Y;      
           
         elsif((instruction_in(15 downto 12)="1110") and (not(X="00000000"))) then --Branch If Not 0. Confirmed Working.
-          output <= Y;
-        elsif(instruction_in(15 downto 12) = x"9") then -- store Indirect
-          output <= Y;          
-        elsif(instruction_in(15 downto 12) = x"B") then -- store Register
-          output <= X;        
+          output <= Y;      
         else
           output <= (others => '0');               
         end if;

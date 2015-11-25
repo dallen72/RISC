@@ -16,9 +16,12 @@ entity Writeback is
     mem_addr : in std_logic_vector(ADDRESS_WIDTH-1 downto 0); -- from execute
     ALU_output : in std_logic_vector(DATA_WIDTH-1 downto 0); -- from execute
     mem_wr_en : in std_logic; -- comes from decode, through execute to writeback
+    mem_rd_en : in std_logic;
     reg_file_Din_sel : in std_logic; -- comes from decode, through execute to writeback
+    X : in std_logic_vector(7 downto 0);
+    Y : in std_logic_vector(7 downto 0);    
     reg_file_Din : out std_logic_vector(DATA_WIDTH-1 downto 0);
-    reg_file_wr_addr : out std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0)      
+    reg_file_wr_addr : out std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0)
   );
 end entity;
 
@@ -33,9 +36,11 @@ use ieee.numeric_std.ALL;
 Entity MEMORY is
 generic (ADDRESS_WIDTH : integer := 8; WIDTH : integer := 8); -- number of address and data bits
 port (
+  clk : in std_logic;
   ADDR: in std_logic_vector (ADDRESS_WIDTH-1 downto 0);
   DIN: in std_logic_vector (WIDTH-1 downto 0); -- write data
   WR: in STD_LOGIC;  -- active high write enable
+  rd : in std_logic;
   DOUT: out std_logic_vector (WIDTH-1 downto 0) := (others => '0') -- read data
   );
 end MEMORY;
@@ -45,15 +50,33 @@ Architecture behav of MEMORY is
 
 Type memory is ARRAY (0 to (2**ADDRESS_WIDTH)-1) of STD_LOGIC_VECTOR (WIDTH-1 downto 0);
 Signal sig_mem : memory := (others => (others => '0'));
+signal sig_pulse_wr_en : std_logic;
 
 begin
       
-  process(WR, ADDR)
+  WR_PULSE: process (clk)
+  variable var_pulse_written : std_logic;
   begin
-    if (WR = '1') then
+    
+    if (var_pulse_written = '1') then
+      sig_pulse_wr_en <= '0';
+    elsif ( (WR = '1') and (var_pulse_written = '0') ) then
+      sig_pulse_wr_en <= '1';
+      var_pulse_written := '1';
+    elsif (WR = '0') then
+      var_pulse_written := '0';
+    end if;
+  end process;
+      
+  SYNC: process (clk, WR, rd)
+  begin
+    if (sig_pulse_wr_en = '1') then
       sig_mem(to_integer(unsigned(ADDR))) <= DIN;
     end if;
-    DOUT <= sig_mem(to_integer(unsigned(ADDR)));
+    
+    if ( (rising_edge(clk)) and (rd = '1') ) then
+      DOUT <= sig_mem(to_integer(unsigned(ADDR)));
+    end if;
 
   end process;
 end behav;
@@ -62,7 +85,8 @@ end behav;
 
 
 architecture behav of Writeback is
-  signal sig_mem_dout : std_logic_vector(7 downto 0);
+  signal sig_mem_Din : std_logic_vector(7 downto 0) := (others => '0');
+  signal sig_mem_Dout : std_logic_vector(7 downto 0);
   signal sig_mem_wr_en : std_logic := '0';
 begin
   
@@ -70,9 +94,11 @@ begin
   mem1 : entity work.MEMORY
     generic map(ADDRESS_WIDTH => ADDRESS_WIDTH, WIDTH => DATA_WIDTH)
     port map(
+      clk => clk,
       ADDR => mem_addr,
-      DIN => ALU_output,
+      DIN => sig_mem_din,
       WR => sig_mem_wr_en,
+      rd => mem_rd_en,
       DOUT => sig_mem_dout
     );
     
@@ -85,14 +111,29 @@ begin
       
       sig_mem_wr_en <= mem_wr_en;
       
+      if (opcode(7 downto 4) = x"8") then -- LD indirect
+      elsif (opcode(7 downto 4) = x"9") then -- ST indirect
+        sig_mem_Din <= Y;
+      elsif (opcode(7 downto 4) = x"A") then -- LD Reg     
+      elsif (opcode(7 downto 4) = x"B") then -- ST Reg
+        sig_mem_Din <= X;        
+      end if;
+      
       if (rst = '1') then
         reg_file_Din <= (others => '0');
         reg_file_wr_addr <= (others => '0');
-      elsif ( reg_file_Din_sel = '1' ) then
+      elsif ( (reg_file_Din_sel = '1') and (opcode /= x"00") ) then
         reg_file_Din <= sig_mem_dout;
-        reg_file_wr_addr <= ALU_output(3 downto 0);
-      else
-        if (opcode = "01011000") then
+        
+        if ( (opcode(7 downto 4) = x"8") -- LD indirect
+          or (opcode(7 downto 4) = x"A") ) then -- LD Reg
+          reg_file_wr_addr <= Rx;
+        else
+          reg_file_wr_addr <= ALU_output(3 downto 0);
+        end if;
+        
+      elsif (opcode /= x"00") then
+        if ( (opcode = x"58")  ) then -- move
           reg_file_wr_addr <= Ry;
         else
           reg_file_wr_addr <= Rx;

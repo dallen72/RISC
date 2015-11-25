@@ -23,6 +23,12 @@ add wave -radix hex -position 20  sim:/risc_processor/writeback_stage/ALU_output
 add wave -radix hex -position 21  sim:/risc_processor/writeback_stage/reg_file_Din
 add wave -radix hex -position 22  sim:/risc_processor/writeback_stage/reg_file_wr_addr
 add wave -radix hex -position 23  sim:/risc_processor/writeback_stage/sig_mem_dout
+add wave -position 12  sim:/risc_processor/execute_stage/mem_addr_sel
+add wave -position 13  sim:/risc_processor/pipeline_in_three_mem_addr
+add wave -position 12  sim:/risc_processor/decode_stage/mem_addr_sel
+add wave -position 15  sim:/risc_processor/pipeline_in_three_mem_wr_en
+add wave -position 16  sim:/risc_processor/pipeline_out_three_mem_wr_en
+add wave -position 17  sim:/risc_processor/writeback_stage/sig_mem_wr_en
 
 
 add wave -position end  sim:/risc_processor/fetch_stage/rst
@@ -44,6 +50,8 @@ add wave -radix hex -position end  sim:/risc_processor/fetch_stage/instruction_s
 add wave -radix hex -position end  sim:/risc_processor/fetch_stage/instruction_Rx_shift_reg
 add wave -radix unsigned -position end  sim:/risc_processor/fetch_stage/bubble_counter
 add wave -position end  sim:/risc_processor/fetch_stage/sig_bubble_lag
+add wave -position 24  sim:/risc_processor/execute_stage/sig_pulse_writeEnable
+add wave -position 24  sim:/risc_processor/pipeline_in_three_reg_file_wr_en
 
 force -freeze sim:/risc_processor/clk 1 0, 0 {50 ps} -r 100
 force -freeze sim:/risc_processor/clk_stage 1 0, 0 {200 ps} -r 400
@@ -63,4 +71,4 @@ run
 run
 run
 run
-run 80000 ps
+run 50000 ps

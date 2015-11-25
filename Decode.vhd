@@ -52,10 +52,12 @@ begin
 
     if (instruction(15 downto 12) = "1000") then -- LD Indirect
       mem_addr_sel <= "01"; -- set to Y
+    elsif (instruction(15 downto 12) = "1001") then -- ST Indirect
+      mem_addr_sel <= "10";
     elsif ( (instruction(15 downto 12) = "1010") or (instruction(15 downto 12) = "1011") ) then -- LD Register, STR Register
-      mem_addr_sel <= "10"; -- set to lower 8 bits of instruction
+      mem_addr_sel <= "11"; -- set to lower 8 bits of instruction
     else
-       mem_addr_sel <= "00";
+      mem_addr_sel <= "00";
     end if;
 
     

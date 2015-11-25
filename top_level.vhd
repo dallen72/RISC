@@ -117,10 +117,12 @@ begin
         clk_stage => clk_stage,
         Rx => pipeline_out_two_Rx,
         Ry => pipeline_out_two_Ry,
+        mem_addr_sel => pipeline_out_two_mem_addr_sel,
         writeback => sig_reg_file_Din,
         writeEnable => pipeline_out_three_reg_file_wr_en,
         writeAdd => sig_reg_file_wr_addr,  
-        output => sig_ALU_out
+        output => sig_ALU_out,
+        mem_addr => pipeline_in_three_mem_addr
       );
       
   writeback_stage : entity work.writeback
@@ -161,7 +163,6 @@ begin
   
         pipeline_in_three_reg_file_wr_en <= '0';
         pipeline_in_three_instruction <=  (others => '0');
-        pipeline_in_three_mem_addr <= (others => '0');
         pipeline_in_three_offset_en <= '0';
         pipeline_in_three_reg_file_wr_addr <= (others => '0');
         pipeline_in_three_reg_file_Din_sel <= '0';

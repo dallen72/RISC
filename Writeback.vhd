@@ -33,10 +33,11 @@ use ieee.numeric_std.ALL;
 Entity MEMORY is
 generic (ADDRESS_WIDTH : integer := 8; WIDTH : integer := 8); -- number of address and data bits
 port (
-ADDR: in std_logic_vector (ADDRESS_WIDTH-1 downto 0);
-DIN: in std_logic_vector (WIDTH-1 downto 0); -- write data
-DOUT: out std_logic_vector (WIDTH-1 downto 0) := (others => '0'); -- read data
-WR: in STD_LOGIC) ; -- active high write enable
+  ADDR: in std_logic_vector (ADDRESS_WIDTH-1 downto 0);
+  DIN: in std_logic_vector (WIDTH-1 downto 0); -- write data
+  WR: in STD_LOGIC;  -- active high write enable
+  DOUT: out std_logic_vector (WIDTH-1 downto 0) := (others => '0') -- read data
+  );
 end MEMORY;
 
 
@@ -50,7 +51,7 @@ begin
   process(WR, ADDR)
   begin
     if (WR = '1') then
-    sig_mem(to_integer(unsigned(ADDR))) <= DIN;
+      sig_mem(to_integer(unsigned(ADDR))) <= DIN;
     end if;
     DOUT <= sig_mem(to_integer(unsigned(ADDR)));
 
@@ -62,6 +63,7 @@ end behav;
 
 architecture behav of Writeback is
   signal sig_mem_dout : std_logic_vector(7 downto 0);
+  signal sig_mem_wr_en : std_logic := '0';
 begin
   
 
@@ -70,8 +72,8 @@ begin
     port map(
       ADDR => mem_addr,
       DIN => ALU_output,
-      DOUT => sig_mem_dout,
-      WR => mem_wr_en
+      WR => sig_mem_wr_en,
+      DOUT => sig_mem_dout
     );
     
     
@@ -80,6 +82,8 @@ begin
   begin
 
     if (clk'event and clk = '1') then
+      
+      sig_mem_wr_en <= mem_wr_en;
       
       if (rst = '1') then
         reg_file_Din <= (others => '0');

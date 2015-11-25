@@ -79,7 +79,10 @@ begin
       mem_wr_en <= '0';  
       mem_rd_en <= '0';  
       reg_file_Din_sel <= '0';      
-              
+    
+    else
+      reg_file_Din_sel <= '0';
+       
     end if;
     
     if (instruction(15 downto 12) = x"C") then -- jump/branch instructions

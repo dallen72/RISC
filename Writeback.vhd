@@ -125,7 +125,7 @@ begin
       if (rst = '1') then
         reg_file_Din <= (others => '0');
         reg_file_wr_addr <= (others => '0');
-      elsif ( (opcode /= x"00") ) then
+      elsif (opcode /= x"00") then
         
         if ( (opcode = x"56") -- Clear
           or (opcode = x"57") -- Set

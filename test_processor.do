@@ -17,6 +17,26 @@ add wave -radix unsigned -position insertpoint  sim:/risc_processor/writeback_st
 add wave -radix unsigned -position insertpoint  sim:/risc_processor/writeback_stage/mem1/sig_mem(2)
 add wave -radix unsigned -position insertpoint  sim:/risc_processor/writeback_stage/mem1/sig_mem(3)
 add wave -radix unsigned -position insertpoint  sim:/risc_processor/writeback_stage/mem1/sig_mem(4)
+add wave -position end  sim:/risc_processor/fetch_stage/rst
+add wave -position end  sim:/risc_processor/fetch_stage/jump_enable
+add wave -position end  sim:/risc_processor/fetch_stage/jump_address
+add wave -position end  sim:/risc_processor/fetch_stage/clk
+add wave -position end  sim:/risc_processor/fetch_stage/clk_stage
+add wave -position end  sim:/risc_processor/fetch_stage/offset_enable
+add wave -position end  sim:/risc_processor/fetch_stage/offset_value
+add wave -position end  sim:/risc_processor/fetch_stage/out_instruction
+add wave -position end  sim:/risc_processor/fetch_stage/counter
+add wave -position end  sim:/risc_processor/fetch_stage/sig_bubble
+add wave -position end  sim:/risc_processor/fetch_stage/sig_counter_reversed
+add wave -position end  sim:/risc_processor/fetch_stage/sig_counter_reversed_bubble
+add wave -position end  sim:/risc_processor/fetch_stage/sig_counter_reversed_no_bubble
+add wave -position end  sim:/risc_processor/fetch_stage/sig_delay_bubble
+add wave -position end  sim:/risc_processor/fetch_stage/instruction
+add wave -position end  sim:/risc_processor/fetch_stage/instruction_shift_reg
+add wave -position end  sim:/risc_processor/fetch_stage/instruction_Rx_shift_reg
+add wave -position end  sim:/risc_processor/fetch_stage/bubble_counter
+add wave -position end  sim:/risc_processor/fetch_stage/sig_bubble_lag
+
 
 
 force -freeze sim:/risc_processor/clk 1 0, 0 {50 ps} -r 100

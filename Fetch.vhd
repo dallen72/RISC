@@ -197,7 +197,7 @@ instruction <= x"9012";  -- Store Indirect $r1, $r2 (MEM[4] = 2)
 elsif(counter = "00110110") then
 instruction <= x"8031";  -- Load Indirect $r3, $r1 ($r3 = 2)
 elsif(counter = "00110111") then
-instruction <= "0000000000000000";
+instruction <= x"D04B"; -- branch to 75
 elsif(counter = "00111000") then
 instruction <= "0000000000000000";
 elsif(counter = "00111001") then
@@ -237,7 +237,7 @@ instruction <= "0000000000000000";
 elsif(counter = "01001010") then
 instruction <= "0000000000000000";
 elsif(counter = "01001011") then
-instruction <= "0000000000000000";
+instruction <= x"E064"; -- branch to 100
 elsif(counter = "01001100") then
 instruction <= "0000000000000000";
 elsif(counter = "01001101") then
@@ -287,7 +287,7 @@ instruction <= "0000000000000000";
 elsif(counter = "01100011") then
 instruction <= "0000000000000000";
 elsif(counter = "01100100") then
-instruction <= "0000000000000000";
+instruction <= x"1111"; -- ADDI r1, 17 ($r1 = 21)
 elsif(counter = "01100101") then
 instruction <= "0000000000000000";
 elsif(counter = "01100110") then

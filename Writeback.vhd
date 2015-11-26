@@ -10,6 +10,7 @@ entity Writeback is
   port(
     rst : in std_logic;
     clk : in std_logic;
+    clk_stage : in std_logic;
     Rx : in std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);
     Ry : in std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);
     opcode : in std_logic_vector(DATA_WIDTH-1 downto 0);    
@@ -58,13 +59,13 @@ begin
   variable var_pulse_written : std_logic;
   begin
     
-    if (var_pulse_written = '1') then
+    if (WR = '0') then
+      var_pulse_written := '0';
+    elsif (var_pulse_written = '1') then
       sig_pulse_wr_en <= '0';
-    elsif ( (WR = '1') and (var_pulse_written = '0') ) then
+    else
       sig_pulse_wr_en <= '1';
       var_pulse_written := '1';
-    elsif (WR = '0') then
-      var_pulse_written := '0';
     end if;
   end process;
       
@@ -88,6 +89,8 @@ architecture behav of Writeback is
   signal sig_mem_Din : std_logic_vector(7 downto 0) := (others => '0');
   signal sig_mem_Dout : std_logic_vector(7 downto 0);
   signal sig_mem_wr_en : std_logic := '0';
+  signal sig_indirect_Din_X : std_logic_vector(7 downto 0); -- to delay X and Y for indirect instructions
+  signal sig_indirect_Din_Y : std_logic_vector(7 downto 0);
 begin
   
 
@@ -103,22 +106,31 @@ begin
     );
     
     
+  SYNC: process(clk_stage)
+  begin
+    if (rising_edge(clk_stage)) then
+      sig_indirect_Din_X <= X;
+      sig_indirect_Din_Y <= Y;
+    end if;
+  end process;
     
-  SYNC : process (clk, rst)
+  MUXES : process (clk, rst)
   begin
 
     if (clk'event and clk = '1') then
       
       sig_mem_wr_en <= mem_wr_en;
       
-      if (opcode(7 downto 4) = x"8") then -- LD indirect
-      elsif (opcode(7 downto 4) = x"9") then -- ST indirect
-        sig_mem_Din <= Y;
-      elsif (opcode(7 downto 4) = x"A") then -- LD Reg     
-      elsif (opcode(7 downto 4) = x"B") then -- ST Reg
-        sig_mem_Din <= X;        
-      end if;
-      
+      -- Din for memory
+      if (opcode /= x"00") then
+        if (opcode(7 downto 4) = x"8") then -- LD indirect
+        elsif (opcode(7 downto 4) = x"9") then -- ST indirect
+          sig_mem_Din <= sig_indirect_Din_Y;
+        elsif (opcode(7 downto 4) = x"A") then -- LD Reg     
+        elsif (opcode(7 downto 4) = x"B") then -- ST Reg
+          sig_mem_Din <= sig_indirect_Din_X;        
+        end if;
+      end if;    
       
       
       
@@ -140,6 +152,7 @@ begin
         end if;
       end if;
     
+      -- reg file Din
       if (reg_file_Din_sel = '1') then
         reg_file_Din <= sig_mem_dout;
       else

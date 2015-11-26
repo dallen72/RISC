@@ -8,7 +8,7 @@ entity risc_processor is
   generic (ADDRESS_WIDTH : integer := 8; DATA_WIDTH : integer := 8);
   port (
     clk : in std_logic;
-    clk_stage : in std_logic;
+    clk_stage : in std_logic; -- period must be four times clk
     rst : in std_logic
     -- add external interrupt input?
   );
@@ -141,6 +141,7 @@ begin
     port map (
       rst => rst,
       clk => clk,
+      clk_stage => clk_stage,
       opcode => pipeline_out_three_instruction(15 downto 8),
       Rx => pipeline_out_three_Rx,
       Ry => pipeline_out_three_Ry,  

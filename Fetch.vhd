@@ -64,6 +64,7 @@ signal temp_counter : std_logic_vector(7 downto 0);
 signal instruction : std_logic_vector(15 downto 0);
 signal instruction_shift_reg : std_logic_vector(47 downto 0) := (others => '0'); -- shifts last three instructions
 signal instruction_Rx_shift_reg : std_logic_vector(11 downto 0) := (others => '0'); -- shifts Rx's of last three instructions
+signal instruction_Rx_shift_reg_rd : std_logic_vector(11 downto 0) := (others => '0'); -- shifts the Rx to be read of last three instructions
 signal bubble_counter : integer := 0;
 signal sig_bubble_lag : std_logic := '1'; -- for only shifting one instruction after a bubble
 
@@ -625,7 +626,12 @@ elsif ( (sig_bubble = '0') and (counter > 0)
   
   if ( (instruction_Rx_shift_reg(3 downto 0) /= x"0")
      and ( (instruction_Rx_shift_reg(3 downto 0) = instruction_Rx_shift_reg(11 downto 8) )
-        or (instruction_Rx_shift_reg(3 downto 0) = instruction_Rx_shift_reg(7 downto 4) ) ) ) then
+        or (instruction_Rx_shift_reg(3 downto 0) = instruction_Rx_shift_reg(7 downto 4) ) 
+        or (instruction_shift_reg(3 downto 0) = x"8") -- load ind
+        or (instruction_shift_reg(3 downto 0) = x"9") -- store ind
+        or (instruction_Rx_shift_reg_rd(3 downto 0) = instruction_Rx_shift_reg(11 downto 8) ) -- bubble for registers that need to be read from
+        or (instruction_Rx_shift_reg_rd(3 downto 0) = instruction_Rx_shift_reg(7 downto 4) ) 
+      ) ) then
     sig_bubble <= '1';
     sig_delay_bubble <= '1';
   end if; 
@@ -665,21 +671,37 @@ if (rising_edge(clk_stage)) then
         sig_bubble_lag <= '0';
       end if;
       
+      -- store the registers which the instructions are being written to
+      -- always bubble for indirects
       instruction_shift_reg <= instruction & instruction_shift_reg(47 downto 16);
     
-      -- store the registers which the instructions are being written to
-      if ( (instruction(15 downto 12) = "0001") --If add immediate, Rx is in bits 11 - 8.
-        or (instruction(15 downto 12) = "1010") ) then -- load register
-          instruction_Rx_shift_reg <= instruction(11 downto 8) & instruction_Rx_shift_reg(11 downto 4);
-      elsif ( (instruction(15 downto 14) = "11") 
-              or (instruction(14 downto 12) =  "111")
-              or (instruction(15 downto 13) = "100") ) then -- branch instruction, enable interrupts, or load register
+
+      if (instruction(15 downto 12) = x"1") then --If add immediate, Rx is in bits 11 - 8.
+        instruction_Rx_shift_reg <= instruction(11 downto 8) & instruction_Rx_shift_reg(11 downto 4);
+        instruction_Rx_shift_reg_rd <= x"0" & instruction_Rx_shift_reg_rd(11 downto 4);
+        
+      elsif (instruction(14 downto 12) =  "111") then -- enable interrupts
         instruction_Rx_shift_reg <= x"0" & instruction_Rx_shift_reg(11 downto 4);
+        instruction_Rx_shift_reg_rd <= x"0" & instruction_Rx_shift_reg_rd(11 downto 4);        
+        
       elsif (instruction(15 downto 8) = "01011000") then -- move instruction
         instruction_Rx_shift_reg <= instruction(3 downto 0) & instruction_Rx_shift_reg(11 downto 4);
+        instruction_Rx_shift_reg_rd <= instruction(7 downto 4) & instruction_Rx_shift_reg_rd(11 downto 4);                    
+        
+      elsif (instruction(15 downto 12) = x"A") then -- LD Reg
+        instruction_Rx_shift_reg <= instruction(11 downto 8) & instruction_Rx_shift_reg(11 downto 4);  
+        instruction_Rx_shift_reg_rd <= x"0" & instruction_Rx_shift_reg_rd(11 downto 4);             
+      
+      elsif (instruction(15 downto 12) = x"B") then -- ST Reg
+        instruction_Rx_shift_reg <= x"0" & instruction_Rx_shift_reg(11 downto 4);      
+        instruction_Rx_shift_reg_rd <= instruction(11 downto 8) & instruction_Rx_shift_reg_rd(11 downto 4);
+        
       else
         instruction_Rx_shift_reg <= instruction(7 downto 4) & instruction_Rx_shift_reg(11 downto 4);
+        instruction_Rx_shift_reg_rd <= x"0" & instruction_Rx_shift_reg_rd(11 downto 4);     
+            
       end if;
+      
     else
       sig_bubble_lag <= '1';
     end if;

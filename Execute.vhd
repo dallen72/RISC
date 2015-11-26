@@ -48,10 +48,10 @@ begin --PORT MAP
         Y => sig_Y
     );      
         
-  MUX: process (clk)
+  MUX: process (clk_stage)
   begin
     
-    if (rising_edge(clk) and (instruction_in /= x"0000") ) then
+    if (rising_edge(clk_stage) and (instruction_in /= x"0000") ) then
       
       if (mem_addr_sel = "01") then -- LD Indirect
         mem_addr <= sig_Y; -- set to Y

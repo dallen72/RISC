@@ -36,7 +36,37 @@ add wave -position end  sim:/risc_processor/fetch_stage/instruction_shift_reg
 add wave -position end  sim:/risc_processor/fetch_stage/instruction_Rx_shift_reg
 add wave -position end  sim:/risc_processor/fetch_stage/bubble_counter
 add wave -position end  sim:/risc_processor/fetch_stage/sig_bubble_lag
-
+add wave -position 9  sim:/risc_processor/execute_stage/instruction_in
+add wave -position 10  sim:/risc_processor/execute_stage/Rx
+add wave -position 11  sim:/risc_processor/execute_stage/Ry
+add wave -position 12  sim:/risc_processor/execute_stage/mem_addr_sel
+add wave -position 13  sim:/risc_processor/execute_stage/writeback
+add wave -position 14  sim:/risc_processor/execute_stage/writeAdd
+add wave -position 15  sim:/risc_processor/execute_stage/output
+add wave -position 16  sim:/risc_processor/execute_stage/mem_addr
+add wave -position 17  sim:/risc_processor/execute_stage/X
+add wave -position 18  sim:/risc_processor/execute_stage/Y
+add wave -position 19  sim:/risc_processor/execute_stage/sig_X
+add wave -position 20  sim:/risc_processor/execute_stage/sig_Y
+add wave -position 21  sim:/risc_processor/execute_stage/sig_pulse_writeEnable
+add wave -position 22  sim:/risc_processor/execute_stage/clk
+add wave -position 10  sim:/risc_processor/pipeline_out_two_Rx
+add wave -position 10  sim:/risc_processor/decode_stage/Rx
+add wave -position 10  sim:/risc_processor/writeback_stage/Rx
+add wave -position 11  sim:/risc_processor/writeback_stage/Ry
+add wave -position 12  sim:/risc_processor/writeback_stage/opcode
+add wave -position 13  sim:/risc_processor/writeback_stage/mem_addr
+add wave -position 14  sim:/risc_processor/writeback_stage/ALU_output
+add wave -position 15  sim:/risc_processor/writeback_stage/X
+add wave -position 16  sim:/risc_processor/writeback_stage/Y
+add wave -position 17  sim:/risc_processor/writeback_stage/reg_file_Din
+add wave -position 18  sim:/risc_processor/writeback_stage/reg_file_wr_addr
+add wave -position 19  sim:/risc_processor/writeback_stage/sig_mem_Din
+add wave -position 20  sim:/risc_processor/writeback_stage/sig_mem_Dout
+add wave -position 21  sim:/risc_processor/writeback_stage/sig_mem_wr_en
+add wave -position 22  sim:/risc_processor/writeback_stage/sig_indirect_Din_X
+add wave -position 23  sim:/risc_processor/writeback_stage/sig_indirect_Din_Y
+add wave -position 24  sim:/risc_processor/writeback_stage/clk
 
 
 force -freeze sim:/risc_processor/clk 1 0, 0 {50 ps} -r 100

@@ -20,9 +20,10 @@ entity Writeback is
     mem_rd_en : in std_logic;
     reg_file_Din_sel : in std_logic; -- comes from decode, through execute to writeback
     X : in std_logic_vector(7 downto 0);
-    Y : in std_logic_vector(7 downto 0);    
+    Y : in std_logic_vector(7 downto 0);   
     reg_file_Din : out std_logic_vector(DATA_WIDTH-1 downto 0);
-    reg_file_wr_addr : out std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0)
+    reg_file_wr_addr : out std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);
+    branch_en : out std_logic
   );
 end entity;
 
@@ -91,6 +92,7 @@ architecture behav of Writeback is
   signal sig_mem_wr_en : std_logic := '0';
   signal sig_indirect_Din_X : std_logic_vector(7 downto 0); -- to delay X and Y for indirect instructions
   signal sig_indirect_Din_Y : std_logic_vector(7 downto 0);
+  signal sig_branch_en : std_logic := '0';
 begin
   
 
@@ -106,8 +108,21 @@ begin
     );
     
     
-  SYNC: process(clk_stage)
+  SYNC: process(clk_stage, clk)
   begin
+    if (rising_edge(clk)) then
+      if ( (opcode(7 downto 4) = x"D") and (X = x"00") ) then
+        sig_branch_en <= '1';
+      elsif ( (opcode(7 downto 4) = x"E") and (X /= x"00") ) then
+        sig_branch_en <= '1';
+      else
+        sig_branch_en <= '0';
+      end if;
+      
+      branch_en <= sig_branch_en;
+      
+    end if;
+    
     if (rising_edge(clk_stage)) then
       sig_indirect_Din_X <= X;
       sig_indirect_Din_Y <= Y;

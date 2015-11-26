@@ -86,17 +86,17 @@ architecture structural of risc_processor is
 ---------------------------------------------------------------------------------------------------------
 
   signal sig_to_exec_reg_file_wr_address : std_logic_vector(ADDRESS_WIDTH-1 downto 0);
-  signal sig_jump_en : std_logic;
-  signal sig_jump_addr : std_logic_vector(ADDRESS_WIDTH-1 downto 0);
+  signal sig_branch_en : std_logic;
   signal sig_ALU_out : std_logic_vector(7 downto 0) := (others => '0');
+  
 
 begin
 
   fetch_stage : entity work.fetch
     port map (
       rst => rst,
-      jump_enable => sig_jump_en,
-      jump_address => pipeline_out_three_instruction(7 downto 0),
+      branch_en => sig_branch_en,
+      branch_addr => pipeline_out_three_instruction(7 downto 0),
       clk => clk,
       clk_stage => clk_stage,
       offset_enable => pipeline_out_three_offset_en,
@@ -153,7 +153,8 @@ begin
       mem_wr_en => pipeline_out_three_mem_wr_en, -- comes from decode, through execute to writeback
       reg_file_Din_sel => pipeline_out_three_reg_file_Din_sel, -- comes from decode, through execute to writeback
       reg_file_Din => sig_reg_file_Din,
-      reg_file_wr_addr => sig_reg_file_wr_addr
+      reg_file_wr_addr => sig_reg_file_wr_addr,
+      branch_en => sig_branch_en
       );
 
 
@@ -194,7 +195,6 @@ begin
         pipeline_out_three_Rx <= (others => '0');
         pipeline_out_three_Ry <= (others => '0');    
         
-        sig_jump_en <= '0';
         pipeline_in_three_ALU_out <= (others => '0');
         
       else

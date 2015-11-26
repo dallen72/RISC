@@ -34,8 +34,8 @@ use IEEE.NUMERIC_STD.ALL;
 entity fetch is --Declare the top-level entity and all major inputs/outputs
 port (
   rst : in std_logic;
-  jump_enable: in std_logic;
-  jump_address: in std_logic_vector(7 downto 0);
+  branch_en: in std_logic;
+  branch_addr: in std_logic_vector(7 downto 0);
   clk: in std_logic;
   clk_stage : in std_logic;
   offset_enable: in std_logic;
@@ -67,6 +67,7 @@ signal instruction_Rx_shift_reg : std_logic_vector(11 downto 0) := (others => '0
 signal instruction_Rx_shift_reg_rd : std_logic_vector(11 downto 0) := (others => '0'); -- shifts the Rx to be read of last three instructions
 signal bubble_counter : integer := 0;
 signal sig_bubble_lag : std_logic := '1'; -- for only shifting one instruction after a bubble
+signal sig_pulse_branch_en : std_logic := '0';
 
 begin --PORT MAP
  
@@ -106,7 +107,7 @@ instruction <= x"5211";  -- Nand $r1, $r1 ($r1 = 251)
 elsif(counter = "00001000") then
 instruction <= x"3110";  -- decrement $r1 ($r1 = 250)
 elsif(counter = "00001001") then
-instruction <= x"D011";  -- Branch if zero $r1 (no branch)
+instruction <= x"D111";  -- Branch if zero $r1 (no branch)
 elsif(counter = "00001010") then
 instruction <= x"E011";  -- Branch if not zero $r0, $r1 (no branch)
 elsif(counter = "00001011") then
@@ -238,7 +239,7 @@ instruction <= "0000000000000000";
 elsif(counter = "01001010") then
 instruction <= "0000000000000000";
 elsif(counter = "01001011") then
-instruction <= x"E064"; -- branch to 100
+instruction <= x"E364"; -- branch to 100
 elsif(counter = "01001100") then
 instruction <= "0000000000000000";
 elsif(counter = "01001101") then
@@ -660,6 +661,22 @@ end if;
 
 end process;
 
+BRANCH_PULSE: process (clk, counter)
+  variable var_pulse_written : std_logic;
+  begin
+    if ( rising_edge(clk) and (counter > 5) ) then
+    
+      if (branch_en = '0') then
+        var_pulse_written := '0';
+      elsif (var_pulse_written = '1') then
+        sig_pulse_branch_en <= '0';
+      else
+        sig_pulse_branch_en <= '1';
+        var_pulse_written := '1';
+     end if;  
+    end if;
+  end process;
+
 -- shift right the instructions for the bubble
 shift_instructions: process (clk_stage)
 begin
@@ -710,12 +727,14 @@ end if;
 
 end process;
 
-count: process(jump_enable,jump_address,clk_stage,offset_enable,offset_value, rst, sig_bubble)
+count: process(sig_pulse_branch_en,branch_addr,clk_stage,offset_enable,offset_value, rst, sig_bubble)
 variable var_count : integer := 0;
 
 begin
   if (rst = '1') then
     counter <= (others => '0');
+  elsif (sig_pulse_branch_en = '1') then
+    counter <= branch_addr;
   elsif ( (sig_bubble = '1') and (sig_counter_reversed = '0') ) then
     --decrement counter minus one to ensure the next instruction after bubble ends is not one ahead
     counter  <= counter - 1;

@@ -96,6 +96,7 @@ begin
     if ( (instruction(15 downto 12)="0001") -- If add immediate, Rx is in bits 11 - 8.
       or (instruction(15 downto 13) = "101") -- load/store regs
       or ( (instruction(15 downto 12) = x"D") or (instruction(15 downto 12) = x"E") ) ) then -- branch instructions  
+      
       Rx <= instruction(11 downto 8);
       Ry <= instruction(3 downto 0);
     elsif ( (instruction(15 downto 13) = "001") -- Arithmetic

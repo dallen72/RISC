@@ -1,0 +1,29 @@
+PsuedoInstruction,register changed,final value,Hex Instruction
+"ADDI $R1, 8",r1,8,1108
+INC $R2,r2,1,3020
+SHR $R1,r1,4,4110
+SHL $R2,r2,2,4020
+"NOT $R1, $R1",r1,251,5010
+"NOR $R1, $R1",r1,4,5011
+"NAND $R1, $R1",r1,251,5211
+DEC $R1,r1,250,3110
+BRZ   $R1,,no branch,D111
+BRNZ $R0,,no branch,E011
+SET $R1,r1,255,5710
+CLEAR $R1,r1,0,5610
+"SETLT $R1, $R2",r1,255,5F12
+"ADDI $R1, 1",r1,1,1102
+"OR $R1, $R2",r1,3,5512
+"AND $R1, $R2",r1,2,5412
+"XOR $R1, $R2",r1,0,5312
+"MOV $R2, $R1",r1,2,5821
+"SUB $R1, $R2",r1,0,2112
+Jump,,to Instr 50,C032
+"ST $R2, MEM[1]",MEM[1],2,B201
+"LD $R1, MEM[1]",r1,2,A101
+"ADD $R1, $R2",r1,4,2012
+"STIND $R1, $R2",MEM[4],2,9012
+"LDIND $R3, $R1",r3,2,8031
+BRZ   $R0,,branch to 75,D04B
+brnz $R3,,branch to 100,E364
+"ADDI $R1, 17",r1,21,1111

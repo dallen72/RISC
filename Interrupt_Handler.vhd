@@ -10,13 +10,15 @@ entity interrupt_handler is
     intrpt : in std_logic; -- from top level. Signals that an interrupt has been activated
     
     -- from execute
-    Din : in std_logic_vector(7 downto 0); -- from execute
+    Din : in std_logic_vector(7 downto 0);
     -- to execute
+    output_en_intrpt_handler : out std_logic;
     wr_reg : out std_logic;    
-    Dout : out std_logic_vector(7 downto 0); -- to execute
+    Dout : out std_logic_vector(7 downto 0);
+    reg_addr : out std_logic_vector(3 downto 0);
     
     -- from fetch
-    intrpt_instr : in std_logic;    
+    store_intrpt_en : in std_logic; -- stores the interrupt enables   
     RetI : in std_logic;    
     in_ret_addr : in std_logic_vector(7 downto 0);    
     en_intrpt : in std_logic_vector(3 downto 0);    
@@ -197,7 +199,8 @@ begin
     if (rst = '1') then
       sig_next_writer_state <= "00";
       sig_wr_count_en <= '0';
-      pc_cont_counting <= '1';         
+      pc_cont_counting <= '1';
+      wr_reg <= '0';         
     elsif (rising_edge(clk)) then
   
   
@@ -235,7 +238,8 @@ begin
           sig_next_writer_state <= "11";
           sig_wr_count_en <= '1';
           sig_wr_count_ld <= '0'; 
-          pc_cont_counting <= '0';                          
+          pc_cont_counting <= '0';      
+          wr_reg <= '1';                    
         end if;       
 
       -- returning from all interrupts back to main
@@ -244,7 +248,8 @@ begin
           sig_next_writer_state <= "00";
           sig_wr_count_en <= '0';
           sig_wr_count_ld <='1';  
-          pc_cont_counting <= '1';                  
+          pc_cont_counting <= '1';   
+          wr_reg <= '0';               
         end if;
   
       end if;
@@ -254,6 +259,24 @@ begin
     
   end process;
  
+  -- drives the output signal that stored the interrupt address in the PC
+  SET_PC_ADDR : process (clk, sig_priority_handler_stabilized)
+  variable var_pulsed : std_logic := '0';
+  begin
+    if (rst = '1') then
+      store_addr <= '0';
+      var_pulsed := '0';
+    elsif (rising_edge(clk)) then
+      if ( (sig_priority_handler_stabilized = '1') and (var_pulsed = '0') ) then
+        store_addr <= '1';
+        var_pulsed := '1';
+      elsif ( (sig_priority_handler_stabilized = '1') and (var_pulsed = '1') ) then
+        store_addr <= '0';
+      elsif ( (sig_priority_handler_stabilized = '0') and (var_pulsed = '1') ) then
+        var_pulsed := '0';
+      end if;
+    end if;
+  end process;
  
   -- stores which intrpts are enabled
   -- stores interrupt instruction addresses
@@ -263,7 +286,6 @@ begin
     if (rising_edge(clk)) then
 
       -- default
-      sig_reg_en_intrpt(0) <= '0';
     
       intrpt_addr(0) <= x"7D"; -- 125
       intrpt_addr(1) <= x"96"; -- 150
@@ -271,7 +293,7 @@ begin
       intrpt_addr(3) <= x"c8"; -- 175      
     
     -- store which intrpts are enabled
-      if ( (en_intrpt(0) = '1') or (en_intrpt(1) = '1') or (en_intrpt(2) = '1') or (en_intrpt(3) = '1') ) then
+      if (store_intrpt_en = '1') then
         sig_reg_en_intrpt(0) <= en_intrpt(0);
         sig_reg_en_intrpt(1) <= en_intrpt(1);
         sig_reg_en_intrpt(2) <= en_intrpt(2);
@@ -293,9 +315,19 @@ begin
         sig_current_writer_state <= sig_next_writer_state;
         sig_processor_stabilized_state <= sig_processor_stabilized_next_state;    
         sig_addr_reg <= sig_wr_count;
+        reg_addr <= sig_wr_count;
         sig_Din_reg <= Din;
       end if;
-    
+      
+      if ( (sig_in_intrpt = '1')
+        or (sig_next_writer_state = "10")
+        or (sig_next_writer_state = "11") ) then
+        
+        output_en_intrpt_handler <= '1';
+      else
+        output_en_intrpt_handler <= '0';
+      end if;
+      
     end if;
   end process;
   

@@ -7,13 +7,23 @@ entity interrupt_handler is
   port (
     rst : in std_logic;
     clk : in std_logic;
-    intrpt : in std_logic; -- from top level
+    intrpt : in std_logic; -- from top level. Signals that an interrupt has been activated
+    
+    -- from execute
     Din : in std_logic_vector(7 downto 0); -- from execute
-    in_ret_addr : in std_logic_vector(7 downto 0);  -- from fetch
-    RetI : in std_logic; -- from fetch
-    en_intrpt : in std_logic_vector(3 downto 0); -- from fetch
+    -- to execute
+    wr_reg : out std_logic;    
     Dout : out std_logic_vector(7 downto 0); -- to execute
-    out_jump_addr : out std_logic_vector(7 downto 0) 
+    
+    -- from fetch
+    intrpt_instr : in std_logic;    
+    RetI : in std_logic;    
+    in_ret_addr : in std_logic_vector(7 downto 0);    
+    en_intrpt : in std_logic_vector(3 downto 0);    
+    -- to fetch        
+    store_addr : out std_logic;
+    out_jump_addr : out std_logic_vector(7 downto 0);
+    pc_cont_counting : out std_logic
   );
   
 end interrupt_handler;
@@ -64,21 +74,35 @@ end behav;
 --------------------------------------------------------------------------------------------------------------------------
 
 architecture behav of interrupt_handler is
+  constant STABILIZATION_DELAY : integer := 12;
+  signal sig_processor_stabilized_state : std_logic;  -- for stabilization of processor after interrupt has occured ( processor has written all pipelined instructions). 0 is stable 
+  signal sig_processor_stabilized_next_state : std_logic;     
+  signal sig_priority_handler_stabilized : std_logic; -- the priority handler has reached a steady state
   signal sig_Din_reg : std_logic_vector(7 downto 0);
   signal sig_wr_reg : std_logic;
   signal sig_addr_reg : std_logic_vector(3 downto 0);
   signal sig_ret_addr : std_logic_vector(7 downto 0);
   signal sig_wr_count : std_logic_vector(3 downto 0); 
   signal sig_wr_count_en : std_logic;
+  signal sig_wr_count_ld : std_logic;
+  
+  -- priority handler state machine
   signal sig_current_intrpt : std_logic_vector(2 downto 0);
   signal sig_next_current_intrpt : std_logic_vector(2 downto 0);
+  signal sig_in_intrpt : std_logic;
+  signal sig_processor_stabilize_counter_en : std_logic;
+  signal sig_processor_stabilize_ld : std_logic;
+  signal sig_processor_stabilize_count : std_logic_vector(3 downto 0);
+  
+  -- writer state machine
+  signal sig_next_writer_state : std_logic_vector(1 downto 0);
+  signal sig_current_writer_state : std_logic_vector(1 downto 0);  
   
   type intrpt_addr_array is array(0 to 3) of std_logic_vector(7 downto 0);
   signal intrpt_addr : intrpt_addr_array := (others => (others => '0'));
   
     -- store which intrpts are enabled  
   signal sig_reg_en_intrpt : std_logic_vector(4 downto 0) := (others => '0');
-  signal sig_in_intrpt : std_logic;
   
   component counter
   generic(WIDTH : integer := 8);
@@ -113,9 +137,19 @@ begin
    port map (  
      clk => clk,
      en => sig_wr_count_en,
-     ld => '0',
+     ld => sig_wr_count_ld,
      Din => (others => '0'),
      Dout => sig_wr_count
+  );
+  
+  processor_stabilization_counter : component counter
+  generic map(WIDTH => 4)
+  port map (
+     clk => clk,
+     en => sig_processor_stabilize_counter_en,
+     ld => sig_processor_stabilize_ld,
+     Din => (others => '0'),
+     dout => sig_processor_stabilize_count
   );
  
       
@@ -129,9 +163,96 @@ begin
       
   end process; 
       
+  TIMERS : process (clk, rst, sig_in_intrpt)
+  begin
+    
+    if (rst = '1') then
+      sig_processor_stabilize_counter_en <= '0';
+      sig_processor_stabilize_ld <= '1';
+      sig_processor_stabilized_next_state <= '0'; -- 0 is stable/init
+    elsif (rising_edge(clk)) then
+ 
+      if (sig_processor_stabilized_state = '0') then -- stable
+        if (intrpt = '1') then
+          sig_processor_stabilized_next_state <= '1';
+          sig_processor_stabilize_ld <= '0';
+          sig_processor_stabilize_counter_en <= '1';
+        end if;
+        
+      elsif (sig_processor_stabilized_state = '1') then -- unstable
+        if (sig_processor_stabilize_count = STABILIZATION_DELAY) then
+          sig_processor_stabilized_next_state <= '0';          
+          sig_processor_stabilize_ld <= '1';
+          sig_processor_stabilize_counter_en <= '0';
+        end if;
+      end if;
+
+    end if;
+  end process;
+      
   -- drives the scratchpad
- -- WRITER : process ()
- -- end process;
+  WRITER : process (clk, sig_in_intrpt)
+  begin
+    
+    if (rst = '1') then
+      sig_next_writer_state <= "00";
+      sig_wr_count_en <= '0';
+      pc_cont_counting <= '1';         
+    elsif (rising_edge(clk)) then
+  
+  
+      -- stabilizing
+      if (sig_current_writer_state = "00") then
+        if (sig_processor_stabilized_state = '1') then
+          pc_cont_counting <= '0';
+        elsif ( (sig_processor_stabilized_state = '0') and (sig_processor_stabilize_count = x"E") ) then -- writer to scratchpad
+          sig_next_writer_state <= "01";
+          sig_wr_count_en <= '1';
+          sig_wr_reg <= '1';
+          sig_wr_count_ld <= '0'; 
+          pc_cont_counting <= '0';       
+        end if;
+      
+      -- writing from the register to the scratchpad
+      elsif (sig_current_writer_state = "01") then
+        if (sig_addr_reg > 14) then
+          sig_next_writer_state <= "10";
+          sig_wr_count_en <= '0';
+          sig_wr_reg <= '0';    
+          sig_wr_count_ld <= '1';
+          if (sig_priority_handler_stabilized = '1') then
+            pc_cont_counting <= '1';                        
+          end if;
+        end if;
+
+      -- inside interrupt and not writing
+      elsif (sig_current_writer_state = "10") then   
+        if (RetI = '1') then
+          pc_cont_counting <= '0';  
+        elsif ( (sig_priority_handler_stabilized = '1') and (sig_in_intrpt = '1') ) then
+          pc_cont_counting <= '1';                         
+        elsif (sig_in_intrpt = '0') then
+          sig_next_writer_state <= "11";
+          sig_wr_count_en <= '1';
+          sig_wr_count_ld <= '0'; 
+          pc_cont_counting <= '0';                          
+        end if;       
+
+      -- returning from all interrupts back to main
+      elsif (sig_current_writer_state = "11") then
+        if (sig_addr_reg > 14) then
+          sig_next_writer_state <= "00";
+          sig_wr_count_en <= '0';
+          sig_wr_count_ld <='1';  
+          pc_cont_counting <= '1';                  
+        end if;
+  
+      end if;
+    
+    
+    end if;
+    
+  end process;
  
  
   -- stores which intrpts are enabled
@@ -165,20 +286,29 @@ begin
   begin
     if (rst = '1') then
       sig_current_intrpt <= "000";
+      sig_current_writer_state <= "00";
     elsif (clk'event) then
       sig_current_intrpt <= sig_next_current_intrpt;
+      if (rising_edge(clk)) then
+        sig_current_writer_state <= sig_next_writer_state;
+        sig_processor_stabilized_state <= sig_processor_stabilized_next_state;    
+        sig_addr_reg <= sig_wr_count;
+        sig_Din_reg <= Din;
+      end if;
+    
     end if;
   end process;
   
   -- controls the writer
   -- output the return address
   PRIORITY_HANDLER : process (clk, intrpt, en_intrpt, RetI, sig_ret_addr)
-  variable var_in_main : std_logic := '1';
   begin
   
   
   if (rst = '1') then
       sig_next_current_intrpt <= "000"; 
+      sig_in_intrpt <= '0';
+      sig_priority_handler_stabilized <= '1';
   elsif (rising_edge(clk)) then
     -- set the output current address to the main return address.
     -- LSB is highest prority interrupt
@@ -186,35 +316,52 @@ begin
     if (sig_current_intrpt = "000") then
       if (intrpt = '1') then
         sig_next_current_intrpt <= "001";                             
-        out_jump_addr <= intrpt_addr(0);         
+        out_jump_addr <= intrpt_addr(0);
+        sig_in_intrpt <= '1';     
+        sig_priority_handler_stabilized <= '0';
+      else
+        sig_priority_handler_stabilized <= '1';       
       end if;  
       
     -- first interrupt state
     elsif (sig_current_intrpt = "001") then
       if ( (RetI = '1') or (sig_reg_en_intrpt(0) = '0') ) then
         sig_next_current_intrpt <= "010";                            
-        out_jump_addr <= intrpt_addr(1);            
+        out_jump_addr <= intrpt_addr(1); 
+        sig_priority_handler_stabilized <= '0';
+      else
+        sig_priority_handler_stabilized <= '1';                    
       end if;  
     
     -- second interrupt state      
     elsif (sig_current_intrpt = "010") then
       if ( (RetI = '1') or (sig_reg_en_intrpt(1) = '0') ) then
         sig_next_current_intrpt <= "011";               
-        out_jump_addr <= intrpt_addr(2);                   
+        out_jump_addr <= intrpt_addr(2); 
+        sig_priority_handler_stabilized <= '0';
+      else
+        sig_priority_handler_stabilized <= '1';                            
       end if;  
     
     -- third interrupt state    
     elsif (sig_current_intrpt = "011") then
       if ( (RetI = '1') or (sig_reg_en_intrpt(2) = '0') ) then
         sig_next_current_intrpt <= "100";                               
-        out_jump_addr <= intrpt_addr(3);                                            
+        out_jump_addr <= intrpt_addr(3); 
+        sig_priority_handler_stabilized <= '0';
+      else
+        sig_priority_handler_stabilized <= '1';                                                     
       end if;
   
     -- fourth interrupt state  
     elsif (sig_current_intrpt = "100") then
       if ( (RetI = '1') or (sig_reg_en_intrpt(3) = '0') ) then
         sig_next_current_intrpt <= "000";               
-        out_jump_addr <= sig_ret_addr;                         
+        out_jump_addr <= sig_ret_addr;     
+        sig_in_intrpt <= '0';       
+        sig_priority_handler_stabilized <= '0';
+      else
+        sig_priority_handler_stabilized <= '1';                       
       end if;
 
     end if;

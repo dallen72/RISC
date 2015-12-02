@@ -41,6 +41,7 @@ signal sig_out_mux_writeback : std_logic_vector(7 downto 0);
 signal sig_out_mux_writeEnable : std_logic;
 signal sig_out_mux_writeAdd : std_logic_vector(3 downto 0);
 signal sig_out_mux_sig_X : std_logic_vector(7 downto 0);
+signal sig_intrpt_output_en : std_logic;
 
 begin --PORT MAP
   alu_unit : entity work.ALU port map (
@@ -76,7 +77,7 @@ begin --PORT MAP
         intrpt_Din <= (others => '0');
     elsif (rising_edge(clk)) then
       intrpt_Din <= sig_X;
-      if (intrpt_output_en = '1') then
+      if (sig_intrpt_output_en = '1') then
         sig_out_mux_Rx <= intrpt_reg_addr;
         sig_out_mux_writeback <= intrpt_Dout;
         sig_out_mux_writeEnable <= intrpt_wr_reg;
@@ -115,6 +116,8 @@ begin --PORT MAP
     if (clk'event) then
       X <= sig_X;
       Y <= sig_Y;
+      
+      sig_intrpt_output_en <= intrpt_output_en;
       
       if (sig_out_mux_writeEnable = '1') then
         if (var_counter MOD 8 = 0) then

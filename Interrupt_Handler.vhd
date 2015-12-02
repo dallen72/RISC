@@ -95,7 +95,11 @@ architecture behav of interrupt_handler is
   signal sig_wr_count_buffer : std_logic_vector(3 downto 0);
   signal sig_wr_count_buffer_1 : std_logic_vector(3 downto 0);
   signal sig_wr_count_buffer_2 : std_logic_vector(3 downto 0);
-  signal sig_wr_count_buffer_3 : std_logic_vector(3 downto 0);      
+  signal sig_wr_count_buffer_3 : std_logic_vector(3 downto 0);    
+  signal sig_wrback_count_buffer : std_logic_vector(3 downto 0);
+  signal sig_wrback_count_buffer_1 : std_logic_vector(3 downto 0);
+  signal sig_wrback_count_buffer_2 : std_logic_vector(3 downto 0);
+  signal sig_wrback_count_buffer_3 : std_logic_vector(3 downto 0);   
   
   -- priority handler state machine
   signal sig_current_intrpt : std_logic_vector(2 downto 0);
@@ -207,11 +211,40 @@ begin
       
   BUFFER_WRITING : process (clk)
   begin
-    if (rising_edge(clk)) then
-      sig_wr_count_buffer_1 <= sig_wr_count;
-      sig_wr_count_buffer_2 <= sig_wr_count_buffer_1;      
-      sig_wr_count_buffer_3 <= sig_wr_count_buffer_2;       
-      sig_wr_count_buffer <= sig_wr_count_buffer_3;      
+    if (rst = '1') then
+      sig_wr_count_buffer_1 <= (others => '0');
+      sig_wr_count_buffer_2 <= (others => '0');      
+      sig_wr_count_buffer_3 <= (others => '0');       
+      sig_wr_count_buffer <= (others => '0');
+      
+      sig_wrback_count_buffer_1 <= (others => '0');
+      sig_wrback_count_buffer_2 <= (others => '0');      
+      sig_wrback_count_buffer_3 <= (others => '0');       
+      sig_wrback_count_buffer <= (others => '0');
+    
+    elsif (rising_edge(clk)) then
+      
+      if (sig_current_writer_state = "00") then
+        sig_wr_count_buffer_1 <= (others => '0');
+        sig_wr_count_buffer_2 <= (others => '0');      
+        sig_wr_count_buffer_3 <= (others => '0');       
+        sig_wr_count_buffer <= (others => '0');  
+          
+        sig_wrback_count_buffer_1 <= (others => '0');
+        sig_wrback_count_buffer_2 <= (others => '0');      
+        sig_wrback_count_buffer_3 <= (others => '0');       
+        sig_wrback_count_buffer <= (others => '0'); 
+      
+      else
+        
+        sig_wr_count_buffer_1 <= sig_wr_count;
+        sig_wr_count_buffer_2 <= sig_wr_count_buffer_1;      
+        sig_wr_count_buffer_3 <= sig_wr_count_buffer_2;       
+        sig_wr_count_buffer <= sig_wr_count_buffer_3;  
+          
+        sig_wrback_count_buffer <= sig_wr_count;       
+      end if;
+  
     end if;
   end process;
       
@@ -365,14 +398,21 @@ begin
       sig_current_intrpt <= "000";
       sig_current_writer_state <= "00";  
       pc_cont_processing <= sig_pc_cont_processing;
+      
     elsif (clk'event) then
       pc_cont_processing <= sig_pc_cont_processing;
       sig_current_intrpt <= sig_next_current_intrpt;
+      
       if (rising_edge(clk)) then
         sig_current_writer_state <= sig_next_writer_state;
-        sig_processor_stabilized_state <= sig_processor_stabilized_next_state;    
-        sig_addr_reg <= sig_wr_count_buffer;
-        reg_addr <= sig_wr_count;
+        sig_processor_stabilized_state <= sig_processor_stabilized_next_state;  
+        if (sig_current_writer_state = "01") then  
+          reg_addr <= sig_wr_count;
+          sig_addr_reg <= sig_wr_count_buffer;                    
+        else
+          reg_addr <= sig_wrback_count_buffer;  
+          sig_addr_reg <= sig_wr_count;                            
+        end if;
         sig_Din_reg <= Din;
       end if;
       

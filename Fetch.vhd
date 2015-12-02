@@ -390,11 +390,11 @@ instruction <= "0000000000000000";
 elsif(counter = "01111100") then
 instruction <= "0000000000000000";
 elsif(counter = x"7D") then -- 1st intrpt addr (125)
-instruction <= x"1401"; -- ADDI r1, 17 ($r4 = 1)
+instruction <= x"1401"; -- ADDI r4, 1 ($r4 += 1)
 elsif(counter = "01111110") then
-instruction <= x"1501"; -- ADDI r1, 17 ($r5 = 1)
+instruction <= x"1501"; -- ADDI r5, 1 ($r5 += 1)
 elsif(counter = "01111111") then
-instruction <= x"1601"; -- ADDI r1, 17 ($r6 = 1)
+instruction <= x"1601"; -- ADDI r6, 1 ($r6 += 1)
 elsif(counter = "10000000") then
 instruction <= x"F000"; -- RETI
 elsif(counter = "10000001") then
@@ -440,9 +440,9 @@ instruction <= "0000000000000000";
 elsif(counter = "10010101") then
 instruction <= "0000000000000000";
 elsif(counter = x"96") then -- 2nd intrpt addr (150)
-instruction <= "0000000000000000";
+instruction <= x"1502"; -- ADDI r5, 2 ($r5 += 2)
 elsif(counter = "10010111") then
-instruction <= "0000000000000000";
+instruction <= x"F000"; -- RETI
 elsif(counter = "10011000") then
 instruction <= "0000000000000000";
 elsif(counter = "10011001") then
@@ -490,9 +490,9 @@ instruction <= "0000000000000000";
 elsif(counter = "10101110") then
 instruction <= "0000000000000000";
 elsif(counter = x"AF") then -- third intrpt addr (175)
-instruction <= "0000000000000000";
+instruction <= x"1503"; -- ADDI r5, 3 ($r5 += 3)
 elsif(counter = "10110000") then
-instruction <= "0000000000000000";
+instruction <= x"F000"; -- RETI
 elsif(counter = "10110001") then
 instruction <= "0000000000000000";
 elsif(counter = "10110010") then
@@ -540,9 +540,9 @@ instruction <= "0000000000000000";
 elsif(counter = "11000111") then
 instruction <= "0000000000000000";
 elsif(counter = x"C8") then -- fourth intrpt addr (200)
-instruction <= "0000000000000000";
+instruction <= x"1504"; -- ADDI r5, 4 ($r5 += 4)
 elsif(counter = "11001001") then
-instruction <= "0000000000000000";
+instruction <= x"F000"; -- RETI
 elsif(counter = "11001010") then
 instruction <= "0000000000000000";
 elsif(counter = "11001011") then

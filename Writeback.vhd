@@ -109,9 +109,16 @@ begin
     );
     
     
-  SYNC: process(clk_stage, clk)
+  SYNC: process(clk_stage, clk, opcode)
   begin
     if (rising_edge(clk)) then
+      
+      if (opcode(7 downto 4) = x"F") then -- tell the interrupt handler to return from interrupt
+        RetI <= '1';
+      else
+        RetI <= '0';
+      end if;
+  
       if ( (opcode(7 downto 4) = x"D") and (X = x"00") ) then
         sig_branch_en <= '1';
       elsif ( (opcode(7 downto 4) = x"E") and (X /= x"00") ) then

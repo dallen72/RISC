@@ -383,8 +383,8 @@ elsif(counter = "01110110") then
 instruction <= "0000000000000000";
 elsif(counter = "01110111") then
 instruction <= "0000000000000000";
-elsif(counter = "01111000") then
-instruction <= "0000000000000000";
+elsif(counter = "01111000") then -- addr to return to (main)
+instruction <= x"1101"; -- ADDI r1, 1 ($r1 = 22)
 elsif(counter = "01111001") then
 instruction <= "0000000000000000";
 elsif(counter = "01111010") then
@@ -444,13 +444,13 @@ instruction <= "0000000000000000";
 elsif(counter = "10010101") then
 instruction <= "0000000000000000";
 elsif(counter = x"96") then -- 2nd intrpt addr (150)
-instruction <= x"1502"; -- ADDI r5, 2 ($r5 += 2)
+instruction <= x"1402"; -- ADDI r4, 2 ($r4 += 2)
 elsif(counter = "10010111") then
-instruction <= x"F000"; -- RETI
+instruction <= x"1502"; -- ADDI r5, 2 ($r5 += 2)
 elsif(counter = "10011000") then
-instruction <= "0000000000000000";
+instruction <= x"1602"; -- ADDI r6, 2 ($r6 += 2)
 elsif(counter = "10011001") then
-instruction <= "0000000000000000";
+instruction <= x"F000"; -- RETI
 elsif(counter = "10011010") then
 instruction <= "0000000000000000";
 elsif(counter = "10011011") then
@@ -746,7 +746,7 @@ if (rising_edge(clk_stage) and (intrpt_pc_cont_counting = '1') and (sig_intrpt_c
       -- store the registers which the instructions are being written to
       -- always bubble for indirects
       if (sig_RetI = '1') then
-        instruction_shift_reg <= x"0000" & instruction_shift_reg(47 downto 16);  
+        instruction_shift_reg <= x"F000" & instruction_shift_reg(47 downto 16);  
       else      
         instruction_shift_reg <= instruction & instruction_shift_reg(47 downto 16);
       end if;

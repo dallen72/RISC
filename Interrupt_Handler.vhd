@@ -269,13 +269,11 @@ begin
         -- to allow remaining instructions to execute after returning from interrupt
         if ( (in_RetI = '1') and (RetI_Timer = x"0") ) then
           RetI_Timer <= RetI_Timer + 1;
-          pc_cont_counting <= '0';
-          sig_pc_cont_processing <= '0';          
+          pc_cont_counting <= '0';        
           output_en_intrpt_handler <= '1';              
         elsif ( (RetI_Timer > x"0") and (RetI_Timer < 15) ) then
           RetI_Timer <= RetI_Timer + 1;
-          pc_cont_counting <= '0';
-          sig_pc_cont_processing <= '0';            
+          pc_cont_counting <= '0';       
           output_en_intrpt_handler <= '1';  
         -- state transition  
         elsif (RetI_Timer > 14) then

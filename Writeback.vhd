@@ -23,7 +23,8 @@ entity Writeback is
     Y : in std_logic_vector(7 downto 0);   
     reg_file_Din : out std_logic_vector(DATA_WIDTH-1 downto 0);
     reg_file_wr_addr : out std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);
-    branch_en : out std_logic
+    branch_en : out std_logic;
+    RetI : out std_logic    
   );
 end entity;
 

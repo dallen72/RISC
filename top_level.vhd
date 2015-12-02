@@ -150,7 +150,6 @@ begin
       intrpt_pc_cont_counting => sig_intrpt_pc_cont_counting,
       intrpt_out_jump_addr => sig_intrpt_out_jump_addr,
       intrpt_store_addr => sig_intrpt_store_addr,
-      RetI => sig_intrpt_RetI,
       intrpt_cont_processing => sig_intrpt_cont_processing
       );
       
@@ -210,7 +209,8 @@ begin
       reg_file_Din_sel => pipeline_out_three_reg_file_Din_sel, -- comes from decode, through execute to writeback
       reg_file_Din => sig_reg_file_Din,
       reg_file_wr_addr => sig_reg_file_wr_addr,
-      branch_en => sig_branch_en
+      branch_en => sig_branch_en,
+      RetI => sig_intrpt_RetI      
       );
 
 

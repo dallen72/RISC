@@ -47,7 +47,6 @@ port (
   intrpt_pc_cont_counting : in std_logic;
   intrpt_out_jump_addr : in std_logic_vector(7 downto 0);
   intrpt_store_addr : in std_logic;
-  RetI : out std_logic;
   intrpt_cont_processing : in std_logic
   );
 end fetch;
@@ -84,6 +83,7 @@ signal sig_rst_timer3 : std_logic; -- a timer for the system to stabilize
 signal sig_rst_timer4 : std_logic; -- a timer for the system to stabilize 
 signal sig_rst_timer5 : std_logic; -- a timer for the system to stabilize 
 signal sig_intrpt_cont_processing : std_logic;
+signal sig_RetI : std_logic;
 
 begin --PORT MAP
  
@@ -118,9 +118,9 @@ counter_reversed_mux : two_to1mux1bit
      end if;
   
      if (instruction(15 downto 12) = x"F") then
-       RetI <= '1';
-     else
-       RetI <= '0';
+       sig_RetI <= '1';
+     elsif ( (sig_RetI = '1') and (intrpt_pc_cont_counting = '1') and (intrpt_cont_processing = '1') ) then
+       sig_RetI <= '0';
      end if;
   
      if (instruction(15 downto 12) = x"7") then
@@ -745,8 +745,11 @@ if (rising_edge(clk_stage) and (intrpt_pc_cont_counting = '1') and (sig_intrpt_c
       
       -- store the registers which the instructions are being written to
       -- always bubble for indirects
-      instruction_shift_reg <= instruction & instruction_shift_reg(47 downto 16);
-    
+      if (sig_RetI = '1') then
+        instruction_shift_reg <= x"0000" & instruction_shift_reg(47 downto 16);  
+      else      
+        instruction_shift_reg <= instruction & instruction_shift_reg(47 downto 16);
+      end if;
 
       if (instruction(15 downto 12) = x"1") then --If add immediate, Rx is in bits 11 - 8.
         instruction_Rx_shift_reg <= instruction(11 downto 8) & instruction_Rx_shift_reg(11 downto 4);

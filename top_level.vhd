@@ -9,8 +9,8 @@ entity risc_processor is
   port (
     clk : in std_logic;
     clk_stage : in std_logic; -- period must be four times clk
-    rst : in std_logic
-    -- add external interrupt input?
+    rst : in std_logic;
+    intrpt : in std_logic
   );
 end risc_processor;
 
@@ -89,19 +89,63 @@ architecture structural of risc_processor is
   signal sig_branch_en : std_logic;
   signal sig_ALU_out : std_logic_vector(7 downto 0) := (others => '0');
   
+  -- interrupt signals
+  signal sig_intrpt_Din : std_logic_vector(7 downto 0);
+  -- to/from execute
+  signal sig_intrpt_output_en : std_logic;
+  signal sig_intrpt_wr_reg : std_logic;    
+  signal sig_intrpt_Dout : std_logic_vector(7 downto 0);
+  signal sig_intrpt_reg_addr : std_logic_vector(3 downto 0);
+    
+  -- from fetch 
+  signal sig_intrpt_RetI : std_logic;    
+  signal sig_intrpt_in_ret_addr : std_logic_vector(7 downto 0);    
+  signal sig_intrpt_en_intrpt : std_logic_vector(3 downto 0);    
+  -- to fetch        
+  signal sig_intrpt_store_addr : std_logic;
+  signal sig_intrpt_out_jump_addr : std_logic_vector(7 downto 0);
+  signal sig_intrpt_pc_cont_counting : std_logic;
 
 begin
+
+  interrupt_handler : entity work.interrupt_handler
+  port map (
+    rst => rst,
+    clk => clk,
+    intrpt => intrpt,
+    
+    -- from execute
+    Din => sig_intrpt_Din,
+    -- to execute
+    output_en_intrpt_handler => sig_intrpt_output_en,
+    wr_reg => sig_intrpt_wr_reg,    
+    Dout => sig_intrpt_Dout,
+    reg_addr => sig_intrpt_reg_addr,
+    
+    -- from fetch
+    RetI => sig_intrpt_RetI,    
+    in_ret_addr => sig_intrpt_in_ret_addr,    
+    en_intrpt => sig_intrpt_en_intrpt,    
+    -- to fetch        
+    store_addr => sig_intrpt_store_addr,
+    out_jump_addr => sig_intrpt_out_jump_addr,
+    pc_cont_counting => sig_intrpt_pc_cont_counting
+  );
 
   fetch_stage : entity work.fetch
     port map (
       rst => rst,
+      intrpt => intrpt,
       branch_en => sig_branch_en,
       branch_addr => pipeline_out_three_instruction(7 downto 0),
       clk => clk,
       clk_stage => clk_stage,
       offset_enable => pipeline_out_three_offset_en,
       offset_value => pipeline_out_three_instruction(7 downto 0),
-      out_instruction => pipeline_in_one_instruction
+      out_instruction => pipeline_in_one_instruction,
+      en_intrpts => sig_intrpt_en_intrpt,
+      intrpt_in_ret_addr => sig_intrpt_in_ret_addr,
+      intrpt_pc_cont_counting => sig_intrpt_pc_cont_counting      
       );
       
   decode_stage : entity work.decoder
@@ -134,7 +178,13 @@ begin
         output => sig_ALU_out,
         mem_addr => pipeline_in_three_mem_addr,
         X => pipeline_in_three_X,
-        Y => pipeline_in_three_Y
+        Y => pipeline_in_three_Y,
+        
+        intrpt_output_en => sig_intrpt_output_en,
+        intrpt_wr_reg => sig_intrpt_wr_reg,   
+        intrpt_Dout => sig_intrpt_Dout,
+        intrpt_reg_addr => sig_intrpt_reg_addr,
+        intrpt_Din => sig_intrpt_Din
       );
       
   writeback_stage : entity work.writeback

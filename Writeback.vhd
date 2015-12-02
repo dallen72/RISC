@@ -155,7 +155,6 @@ begin
       elsif (opcode /= x"00") then
         
         if ( (opcode = x"56") -- Clear
-          or (opcode = x"57") -- Set
           or (opcode = x"5F") ) then-- Set if less than
           
           reg_file_wr_addr <= ALU_output(3 downto 0);

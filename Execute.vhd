@@ -16,7 +16,12 @@ entity execute is --Declare the top-level entity and all major inputs/outputs
           writeAdd: in std_logic_vector(3 downto 0);
           output: out std_logic_vector(7 downto 0);
           mem_addr: out std_logic_vector(7 downto 0);
-          X, Y : out std_logic_vector(7 downto 0)
+          X, Y : out std_logic_vector(7 downto 0);
+          intrpt_output_en : in std_logic;
+          intrpt_wr_reg : in std_logic;
+          intrpt_Din : out std_logic_vector(7 downto 0);          
+          intrpt_Dout : in std_logic_vector(7 downto 0);
+          intrpt_reg_addr : in std_logic_vector(3 downto 0)
           );
 end execute;
 
@@ -24,6 +29,18 @@ architecture structural of execute is
 
 signal sig_X, sig_Y : std_logic_vector(7 downto 0);
 signal sig_pulse_writeEnable : std_logic;
+
+-- interrupt signals
+signal sig_intrpt_Din : std_logic_vector(7 downto 0);
+-- to/from execute
+signal sig_intrpt_wr_reg : std_logic;    
+signal sig_intrpt_Dout : std_logic_vector(7 downto 0);
+signal sig_intrpt_reg_addr : std_logic_vector(3 downto 0);
+signal sig_out_mux_Rx : std_logic_vector(3 downto 0);
+signal sig_out_mux_writeback : std_logic_vector(7 downto 0);
+signal sig_out_mux_writeEnable : std_logic;
+signal sig_out_mux_writeAdd : std_logic_vector(3 downto 0);
+signal sig_out_mux_sig_X : std_logic_vector(7 downto 0);
 
 begin --PORT MAP
   alu_unit : entity work.ALU port map (
@@ -39,14 +56,40 @@ begin --PORT MAP
         rst => rst,
         instruction_in => instruction_in,
         clk => clk,
-        Rx => Rx,
+        Rx => sig_out_mux_Rx,
         Ry => Ry,
-        writeback => writeback,
+        writeback => sig_out_mux_writeback,
         writeEnable => sig_pulse_writeEnable,
-        writeAdd => writeAdd,
+        writeAdd => sig_out_mux_writeAdd,
         X => sig_X,
         Y => sig_Y
     );      
+    
+    
+  INTRPT_MUX : process (clk, rst)
+  begin
+    if (rst = '1') then
+        sig_out_mux_Rx <= (others => '0');
+        sig_out_mux_writeback <= (others => '0');
+        sig_out_mux_writeEnable <= '0';
+        sig_out_mux_writeAdd <= (others => '0');
+        intrpt_Din <= (others => '0');
+    elsif (rising_edge(clk)) then
+      intrpt_Din <= sig_X;
+      if (intrpt_output_en = '1') then
+        sig_out_mux_Rx <= intrpt_reg_addr;
+        sig_out_mux_writeback <= intrpt_Dout;
+        sig_out_mux_writeEnable <= intrpt_wr_reg;
+        sig_out_mux_writeAdd <= intrpt_reg_addr;
+      else
+        sig_out_mux_Rx <= Rx;
+        sig_out_mux_writeback <= writeback;
+        sig_out_mux_writeAdd <= writeAdd;
+        sig_out_mux_writeEnable <= writeEnable;
+      end if;
+    end if;
+  end process;
+        
         
   MUX: process (clk_stage)
   begin
@@ -73,7 +116,7 @@ begin --PORT MAP
       X <= sig_X;
       Y <= sig_Y;
       
-      if (writeEnable = '1') then
+      if (sig_out_mux_writeEnable = '1') then
         if (var_counter MOD 8 = 0) then
           sig_pulse_writeEnable <= '1';
         else

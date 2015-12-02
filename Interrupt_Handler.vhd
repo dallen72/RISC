@@ -17,8 +17,7 @@ entity interrupt_handler is
     Dout : out std_logic_vector(7 downto 0);
     reg_addr : out std_logic_vector(3 downto 0);
     
-    -- from fetch
-    store_intrpt_en : in std_logic; -- stores the interrupt enables   
+    -- from fetch 
     RetI : in std_logic;    
     in_ret_addr : in std_logic_vector(7 downto 0);    
     en_intrpt : in std_logic_vector(3 downto 0);    
@@ -87,6 +86,12 @@ architecture behav of interrupt_handler is
   signal sig_wr_count : std_logic_vector(3 downto 0); 
   signal sig_wr_count_en : std_logic;
   signal sig_wr_count_ld : std_logic;
+  
+  -- to synchronize the scratchpad
+  signal sig_wr_count_buffer : std_logic_vector(3 downto 0);
+  signal sig_wr_count_buffer_1 : std_logic_vector(3 downto 0);
+  signal sig_wr_count_buffer_2 : std_logic_vector(3 downto 0);
+  signal sig_wr_count_buffer_3 : std_logic_vector(3 downto 0);      
   
   -- priority handler state machine
   signal sig_current_intrpt : std_logic_vector(2 downto 0);
@@ -192,6 +197,16 @@ begin
     end if;
   end process;
       
+  BUFFER_WRITING : process (clk)
+  begin
+    if (rising_edge(clk)) then
+      sig_wr_count_buffer_1 <= sig_wr_count;
+      sig_wr_count_buffer_2 <= sig_wr_count_buffer_1;      
+      sig_wr_count_buffer_3 <= sig_wr_count_buffer_2;       
+      sig_wr_count_buffer <= sig_wr_count_buffer_3;      
+    end if;
+  end process;
+      
   -- drives the scratchpad
   WRITER : process (clk, sig_in_intrpt)
   begin
@@ -259,7 +274,7 @@ begin
     
   end process;
  
-  -- drives the output signal that stored the interrupt address in the PC
+  -- drives the output signal that stores the interrupt address in the PC
   SET_PC_ADDR : process (clk, sig_priority_handler_stabilized)
   variable var_pulsed : std_logic := '0';
   begin
@@ -293,12 +308,10 @@ begin
       intrpt_addr(3) <= x"c8"; -- 175      
     
     -- store which intrpts are enabled
-      if (store_intrpt_en = '1') then
-        sig_reg_en_intrpt(0) <= en_intrpt(0);
-        sig_reg_en_intrpt(1) <= en_intrpt(1);
-        sig_reg_en_intrpt(2) <= en_intrpt(2);
-        sig_reg_en_intrpt(3) <= en_intrpt(3);
-      end if;
+      sig_reg_en_intrpt(0) <= en_intrpt(0);
+      sig_reg_en_intrpt(1) <= en_intrpt(1);
+      sig_reg_en_intrpt(2) <= en_intrpt(2);
+      sig_reg_en_intrpt(3) <= en_intrpt(3);
     
     
     end if;
@@ -309,12 +322,13 @@ begin
     if (rst = '1') then
       sig_current_intrpt <= "000";
       sig_current_writer_state <= "00";
+      output_en_intrpt_handler <= '0';      
     elsif (clk'event) then
       sig_current_intrpt <= sig_next_current_intrpt;
       if (rising_edge(clk)) then
         sig_current_writer_state <= sig_next_writer_state;
         sig_processor_stabilized_state <= sig_processor_stabilized_next_state;    
-        sig_addr_reg <= sig_wr_count;
+        sig_addr_reg <= sig_wr_count_buffer;
         reg_addr <= sig_wr_count;
         sig_Din_reg <= Din;
       end if;

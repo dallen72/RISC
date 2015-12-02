@@ -123,7 +123,7 @@ begin
     reg_addr => sig_intrpt_reg_addr,
     
     -- from fetch
-    RetI => sig_intrpt_RetI,    
+    in_RetI => sig_intrpt_RetI,    
     in_ret_addr => sig_intrpt_in_ret_addr,    
     en_intrpt => sig_intrpt_en_intrpt,    
     -- to fetch        
@@ -145,7 +145,10 @@ begin
       out_instruction => pipeline_in_one_instruction,
       en_intrpts => sig_intrpt_en_intrpt,
       intrpt_in_ret_addr => sig_intrpt_in_ret_addr,
-      intrpt_pc_cont_counting => sig_intrpt_pc_cont_counting      
+      intrpt_pc_cont_counting => sig_intrpt_pc_cont_counting,
+      intrpt_out_jump_addr => sig_intrpt_out_jump_addr,
+      intrpt_store_addr => sig_intrpt_store_addr,
+      RetI => sig_intrpt_RetI
       );
       
   decode_stage : entity work.decoder

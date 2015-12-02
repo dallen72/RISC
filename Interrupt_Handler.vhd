@@ -12,13 +12,13 @@ entity interrupt_handler is
     -- from execute
     Din : in std_logic_vector(7 downto 0);
     -- to execute
-    output_en_intrpt_handler : out std_logic;
+    output_en_intrpt_handler : out std_logic; -- goes to execute stage. High enables write/read to scratchpad. = NOT pc_cont_counting
     wr_reg : out std_logic;    
     Dout : out std_logic_vector(7 downto 0);
     reg_addr : out std_logic_vector(3 downto 0);
     
     -- from fetch 
-    RetI : in std_logic;    
+    in_RetI : in std_logic;    
     in_ret_addr : in std_logic_vector(7 downto 0);    
     en_intrpt : in std_logic_vector(3 downto 0);    
     -- to fetch        
@@ -110,6 +110,10 @@ architecture behav of interrupt_handler is
   
     -- store which intrpts are enabled  
   signal sig_reg_en_intrpt : std_logic_vector(4 downto 0) := (others => '0');
+  
+  -- buffer for returning from interrupt
+  signal RetI : std_logic;
+  signal RetI_Timer : std_logic_vector(3 downto 0) := x"0";
   
   component counter
   generic(WIDTH : integer := 8);
@@ -215,7 +219,9 @@ begin
       sig_next_writer_state <= "00";
       sig_wr_count_en <= '0';
       pc_cont_counting <= '1';
+      output_en_intrpt_handler <= '0';
       wr_reg <= '0';         
+      RetI_Timer <= x"0";
     elsif (rising_edge(clk)) then
   
   
@@ -223,12 +229,14 @@ begin
       if (sig_current_writer_state = "00") then
         if (sig_processor_stabilized_state = '1') then
           pc_cont_counting <= '0';
+          output_en_intrpt_handler <= '1';          
         elsif ( (sig_processor_stabilized_state = '0') and (sig_processor_stabilize_count = x"E") ) then -- writer to scratchpad
           sig_next_writer_state <= "01";
           sig_wr_count_en <= '1';
           sig_wr_reg <= '1';
           sig_wr_count_ld <= '0'; 
-          pc_cont_counting <= '0';       
+          pc_cont_counting <= '0';  
+          output_en_intrpt_handler <= '1';     
         end if;
       
       -- writing from the register to the scratchpad
@@ -237,24 +245,43 @@ begin
           sig_next_writer_state <= "10";
           sig_wr_count_en <= '0';
           sig_wr_reg <= '0';    
-          sig_wr_count_ld <= '1';
+          sig_wr_count_ld <= '1';                 
           if (sig_priority_handler_stabilized = '1') then
-            pc_cont_counting <= '1';                        
+            pc_cont_counting <= '1';   
+            output_en_intrpt_handler <= '0';                                 
           end if;
         end if;
 
       -- inside interrupt and not writing
-      elsif (sig_current_writer_state = "10") then   
-        if (RetI = '1') then
+      elsif (sig_current_writer_state = "10") then
+      
+        -- to allow remaining instructions to execute after returning from interrupt
+        if ( (in_RetI = '1') and (RetI_Timer = x"0") ) then
+          RetI_Timer <= RetI_Timer + 1;
+          pc_cont_counting <= '0';
+          output_en_intrpt_handler <= '1';              
+        elsif ( (RetI_Timer > x"0") and (RetI_Timer < 15) ) then
+          RetI_Timer <= RetI_Timer + 1;
           pc_cont_counting <= '0';  
+          output_en_intrpt_handler <= '1';  
+        -- state transition  
+        elsif (RetI_Timer > 14) then
+          RetI <= '1';     
+          RetI_Timer <= x"0";         
         elsif ( (sig_priority_handler_stabilized = '1') and (sig_in_intrpt = '1') ) then
-          pc_cont_counting <= '1';                         
+          pc_cont_counting <= '1'; 
+          output_en_intrpt_handler <= '0';
+          RetI <= '0';                                  
         elsif (sig_in_intrpt = '0') then
           sig_next_writer_state <= "11";
           sig_wr_count_en <= '1';
           sig_wr_count_ld <= '0'; 
-          pc_cont_counting <= '0';      
-          wr_reg <= '1';                    
+          pc_cont_counting <= '0';
+          output_en_intrpt_handler <= '1';                
+          wr_reg <= '1';       
+          RetI <= '0';
+        else
+          RetI <= '0';                               
         end if;       
 
       -- returning from all interrupts back to main
@@ -263,7 +290,8 @@ begin
           sig_next_writer_state <= "00";
           sig_wr_count_en <= '0';
           sig_wr_count_ld <='1';  
-          pc_cont_counting <= '1';   
+          pc_cont_counting <= '1';
+          output_en_intrpt_handler <= '0';             
           wr_reg <= '0';               
         end if;
   
@@ -321,8 +349,7 @@ begin
   begin
     if (rst = '1') then
       sig_current_intrpt <= "000";
-      sig_current_writer_state <= "00";
-      output_en_intrpt_handler <= '0';      
+      sig_current_writer_state <= "00";  
     elsif (clk'event) then
       sig_current_intrpt <= sig_next_current_intrpt;
       if (rising_edge(clk)) then
@@ -331,15 +358,6 @@ begin
         sig_addr_reg <= sig_wr_count_buffer;
         reg_addr <= sig_wr_count;
         sig_Din_reg <= Din;
-      end if;
-      
-      if ( (sig_in_intrpt = '1')
-        or (sig_next_writer_state = "10")
-        or (sig_next_writer_state = "11") ) then
-        
-        output_en_intrpt_handler <= '1';
-      else
-        output_en_intrpt_handler <= '0';
       end if;
       
     end if;

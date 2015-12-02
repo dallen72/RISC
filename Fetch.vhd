@@ -44,7 +44,10 @@ port (
   out_instruction: out std_logic_vector (15 downto 0);
   en_intrpts : out std_logic_vector(3 downto 0);
   intrpt_in_ret_addr : out std_logic_vector(7 downto 0);
-  intrpt_pc_cont_counting : in std_logic
+  intrpt_pc_cont_counting : in std_logic;
+  intrpt_out_jump_addr : in std_logic_vector(7 downto 0);
+  intrpt_store_addr : in std_logic;
+  RetI : out std_logic
   );
 end fetch;
 
@@ -108,6 +111,12 @@ counter_reversed_mux : two_to1mux1bit
      
      if (intrpt = '1') then
        intrpt_in_ret_addr <= counter;
+     end if;
+  
+     if (instruction(15 downto 12) = x"F") then
+       RetI <= '1';
+     else
+       RetI <= '0';
      end if;
   
      if (instruction(15 downto 12) = x"7") then
@@ -381,13 +390,13 @@ instruction <= "0000000000000000";
 elsif(counter = "01111100") then
 instruction <= "0000000000000000";
 elsif(counter = x"7D") then -- 1st intrpt addr (125)
-instruction <= "0000000000000000";
+instruction <= x"1401"; -- ADDI r1, 17 ($r4 = 1)
 elsif(counter = "01111110") then
-instruction <= "0000000000000000";
+instruction <= x"1501"; -- ADDI r1, 17 ($r5 = 1)
 elsif(counter = "01111111") then
-instruction <= "0000000000000000";
+instruction <= x"1601"; -- ADDI r1, 17 ($r6 = 1)
 elsif(counter = "10000000") then
-instruction <= "0000000000000000";
+instruction <= x"F000"; -- RETI
 elsif(counter = "10000001") then
 instruction <= "0000000000000000";
 elsif(counter = "10000010") then
@@ -776,6 +785,8 @@ begin
   
   if (rst = '1') then
     counter <= (others => '0');
+  elsif ( (intrpt_store_addr = '1') and (sig_rst_timer = '1') ) then
+      counter <= intrpt_out_jump_addr;
   elsif ( (intrpt_pc_cont_counting = '1') and (sig_rst_timer = '1') ) then
   
     if (sig_pulse_branch_en = '1') then

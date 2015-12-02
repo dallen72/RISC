@@ -47,7 +47,8 @@ port (
   intrpt_pc_cont_counting : in std_logic;
   intrpt_out_jump_addr : in std_logic_vector(7 downto 0);
   intrpt_store_addr : in std_logic;
-  RetI : out std_logic
+  RetI : out std_logic;
+  intrpt_cont_processing : in std_logic
   );
 end fetch;
 
@@ -82,6 +83,7 @@ signal sig_rst_timer2 : std_logic; -- a timer for the system to stabilize
 signal sig_rst_timer3 : std_logic; -- a timer for the system to stabilize 
 signal sig_rst_timer4 : std_logic; -- a timer for the system to stabilize 
 signal sig_rst_timer5 : std_logic; -- a timer for the system to stabilize 
+signal sig_intrpt_cont_processing : std_logic;
 
 begin --PORT MAP
  
@@ -102,12 +104,14 @@ counter_reversed_mux : two_to1mux1bit
      sig_rst_timer4 <= '0';
      sig_rst_timer4 <= '0';
      sig_rst_timer5 <= '0';
+     sig_intrpt_cont_processing <= '1';
    elsif (rising_edge(clk)) then
      sig_rst_timer2 <= sig_rst_timer1;     
      sig_rst_timer3 <= sig_rst_timer2;
      sig_rst_timer4 <= sig_rst_timer3;
      sig_rst_timer5 <= sig_rst_timer4;
-     sig_rst_timer <= sig_rst_timer5;     
+     sig_rst_timer <= sig_rst_timer5;
+     sig_intrpt_cont_processing <= intrpt_cont_processing;     
      
      if (intrpt = '1') then
        intrpt_in_ret_addr <= counter;
@@ -660,7 +664,7 @@ end if;
 
 -- set Rx
 
-if ( (rising_edge(clk)) and (sig_rst_timer = '1') ) then
+if ( (rising_edge(clk)) and (sig_rst_timer = '1') and (sig_intrpt_cont_processing = '1') ) then
     
   
 if ((bubble_counter > 2) and (sig_delay_bubble = '0') ) then -- if bubble time is over, continue counting
@@ -731,7 +735,7 @@ BRANCH_PULSE: process (clk, counter)
 -- shift right the instructions for the bubble
 shift_instructions: process (clk_stage)
 begin
-if (rising_edge(clk_stage)) then
+if (rising_edge(clk_stage) and (intrpt_pc_cont_counting = '1') and (sig_intrpt_cont_processing = '1') ) then
   if ( (sig_bubble = '0') or (bubble_counter > 3) ) then
     if ( (sig_bubble_lag = '1') or (bubble_counter > 3) ) then
       
@@ -778,7 +782,7 @@ end if;
 
 end process;
 
-count: process(sig_pulse_branch_en,branch_addr,clk_stage,offset_enable,offset_value, rst, sig_bubble)
+count: process(sig_pulse_branch_en,branch_addr,clk_stage,offset_enable,offset_value, rst, sig_bubble, intrpt_store_addr, sig_rst_timer)
 variable var_count : integer := 0;
 
 begin

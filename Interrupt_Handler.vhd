@@ -24,7 +24,8 @@ entity interrupt_handler is
     -- to fetch        
     store_addr : out std_logic;
     out_jump_addr : out std_logic_vector(7 downto 0);
-    pc_cont_counting : out std_logic
+    pc_cont_counting : out std_logic;
+    pc_cont_processing : out std_logic
   );
   
 end interrupt_handler;
@@ -86,6 +87,9 @@ architecture behav of interrupt_handler is
   signal sig_wr_count : std_logic_vector(3 downto 0); 
   signal sig_wr_count_en : std_logic;
   signal sig_wr_count_ld : std_logic;
+  
+  -- Fetch Signal
+  signal sig_pc_cont_processing : std_logic;
   
   -- to synchronize the scratchpad
   signal sig_wr_count_buffer : std_logic_vector(3 downto 0);
@@ -164,7 +168,7 @@ begin
   );
  
       
-  SCRATCHPAD : process (intrpt, rst, sig_wr_reg, sig_addr_reg, sig_Din_reg)
+  SCRATCHPAD : process (intrpt, rst, sig_wr_reg, sig_addr_reg, sig_Din_reg, in_ret_addr)
     begin
       If (rst = '1') then
         sig_ret_addr <= (others => '0');
@@ -219,6 +223,7 @@ begin
       sig_next_writer_state <= "00";
       sig_wr_count_en <= '0';
       pc_cont_counting <= '1';
+      sig_pc_cont_processing <= '1';      
       output_en_intrpt_handler <= '0';
       wr_reg <= '0';         
       RetI_Timer <= x"0";
@@ -227,16 +232,21 @@ begin
   
       -- stabilizing
       if (sig_current_writer_state = "00") then
-        if (sig_processor_stabilized_state = '1') then
+        
+        if ( (sig_current_intrpt = "01")
+          or (sig_processor_stabilized_state = '1')
+          or ((sig_processor_stabilized_state = '0') and (sig_processor_stabilize_count = x"E")) ) then
+          
           pc_cont_counting <= '0';
-          output_en_intrpt_handler <= '1';          
-        elsif ( (sig_processor_stabilized_state = '0') and (sig_processor_stabilize_count = x"E") ) then -- writer to scratchpad
+          sig_pc_cont_processing <= '0';          
+          output_en_intrpt_handler <= '1';
+        end if;
+                 
+        if ( (sig_processor_stabilized_state = '0') and (sig_processor_stabilize_count = x"E") ) then -- writer to scratchpad
           sig_next_writer_state <= "01";
           sig_wr_count_en <= '1';
           sig_wr_reg <= '1';
-          sig_wr_count_ld <= '0'; 
-          pc_cont_counting <= '0';  
-          output_en_intrpt_handler <= '1';     
+          sig_wr_count_ld <= '0';  
         end if;
       
       -- writing from the register to the scratchpad
@@ -248,6 +258,7 @@ begin
           sig_wr_count_ld <= '1';                 
           if (sig_priority_handler_stabilized = '1') then
             pc_cont_counting <= '1';   
+            sig_pc_cont_processing <= '1';
             output_en_intrpt_handler <= '0';                                 
           end if;
         end if;
@@ -259,17 +270,20 @@ begin
         if ( (in_RetI = '1') and (RetI_Timer = x"0") ) then
           RetI_Timer <= RetI_Timer + 1;
           pc_cont_counting <= '0';
+          sig_pc_cont_processing <= '0';          
           output_en_intrpt_handler <= '1';              
         elsif ( (RetI_Timer > x"0") and (RetI_Timer < 15) ) then
           RetI_Timer <= RetI_Timer + 1;
-          pc_cont_counting <= '0';  
+          pc_cont_counting <= '0';
+          sig_pc_cont_processing <= '0';            
           output_en_intrpt_handler <= '1';  
         -- state transition  
         elsif (RetI_Timer > 14) then
           RetI <= '1';     
           RetI_Timer <= x"0";         
         elsif ( (sig_priority_handler_stabilized = '1') and (sig_in_intrpt = '1') ) then
-          pc_cont_counting <= '1'; 
+          pc_cont_counting <= '1';
+          sig_pc_cont_processing <= '1';           
           output_en_intrpt_handler <= '0';
           RetI <= '0';                                  
         elsif (sig_in_intrpt = '0') then
@@ -277,6 +291,7 @@ begin
           sig_wr_count_en <= '1';
           sig_wr_count_ld <= '0'; 
           pc_cont_counting <= '0';
+          sig_pc_cont_processing <= '0';          
           output_en_intrpt_handler <= '1';                
           wr_reg <= '1';       
           RetI <= '0';
@@ -291,6 +306,7 @@ begin
           sig_wr_count_en <= '0';
           sig_wr_count_ld <='1';  
           pc_cont_counting <= '1';
+          sig_pc_cont_processing <= '1';          
           output_en_intrpt_handler <= '0';             
           wr_reg <= '0';               
         end if;
@@ -350,7 +366,9 @@ begin
     if (rst = '1') then
       sig_current_intrpt <= "000";
       sig_current_writer_state <= "00";  
+      pc_cont_processing <= sig_pc_cont_processing;
     elsif (clk'event) then
+      pc_cont_processing <= sig_pc_cont_processing;
       sig_current_intrpt <= sig_next_current_intrpt;
       if (rising_edge(clk)) then
         sig_current_writer_state <= sig_next_writer_state;
@@ -421,7 +439,7 @@ begin
     elsif (sig_current_intrpt = "100") then
       if ( (RetI = '1') or (sig_reg_en_intrpt(3) = '0') ) then
         sig_next_current_intrpt <= "000";               
-        out_jump_addr <= sig_ret_addr;     
+        out_jump_addr <= in_ret_addr;     
         sig_in_intrpt <= '0';       
         sig_priority_handler_stabilized <= '0';
       else

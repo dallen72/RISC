@@ -105,6 +105,7 @@ architecture structural of risc_processor is
   signal sig_intrpt_store_addr : std_logic;
   signal sig_intrpt_out_jump_addr : std_logic_vector(7 downto 0);
   signal sig_intrpt_pc_cont_counting : std_logic;
+  signal sig_intrpt_cont_processing : std_logic;
 
 begin
 
@@ -129,7 +130,8 @@ begin
     -- to fetch        
     store_addr => sig_intrpt_store_addr,
     out_jump_addr => sig_intrpt_out_jump_addr,
-    pc_cont_counting => sig_intrpt_pc_cont_counting
+    pc_cont_counting => sig_intrpt_pc_cont_counting,
+    pc_cont_processing => sig_intrpt_cont_processing
   );
 
   fetch_stage : entity work.fetch
@@ -148,7 +150,8 @@ begin
       intrpt_pc_cont_counting => sig_intrpt_pc_cont_counting,
       intrpt_out_jump_addr => sig_intrpt_out_jump_addr,
       intrpt_store_addr => sig_intrpt_store_addr,
-      RetI => sig_intrpt_RetI
+      RetI => sig_intrpt_RetI,
+      intrpt_cont_processing => sig_intrpt_cont_processing
       );
       
   decode_stage : entity work.decoder

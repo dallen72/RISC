@@ -23,7 +23,8 @@ entity Writeback is
     Y : in std_logic_vector(7 downto 0);   
     reg_file_Din : out std_logic_vector(DATA_WIDTH-1 downto 0);
     reg_file_wr_addr : out std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);
-    branch_en : out std_logic
+    branch_en : out std_logic;
+    RetI : out std_logic    
   );
 end entity;
 
@@ -207,9 +208,16 @@ begin
     );
     
     
-  SYNC: process(clk_stage, clk)
+  SYNC: process(clk_stage, clk, opcode)
   begin
     if (rising_edge(clk)) then
+      
+      if (opcode(7 downto 4) = x"F") then -- tell the interrupt handler to return from interrupt
+        RetI <= '1';
+      else
+        RetI <= '0';
+      end if;
+  
       if ( (opcode(7 downto 4) = x"D") and (X = x"00") ) then
         sig_branch_en <= '1';
       elsif ( (opcode(7 downto 4) = x"E") and (X /= x"00") ) then
@@ -254,7 +262,6 @@ begin
       elsif (opcode /= x"00") then
         
         if ( (opcode = x"56") -- Clear
-          or (opcode = x"57") -- Set
           or (opcode = x"5F") ) then-- Set if less than
           
           reg_file_wr_addr <= ALU_output(3 downto 0);

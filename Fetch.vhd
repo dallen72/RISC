@@ -34,13 +34,21 @@ use IEEE.NUMERIC_STD.ALL;
 entity fetch is --Declare the top-level entity and all major inputs/outputs
 port (
   rst : in std_logic;
+  intrpt : in std_logic;
   branch_en: in std_logic;
   branch_addr: in std_logic_vector(7 downto 0);
   clk: in std_logic;
   clk_stage : in std_logic;
   offset_enable: in std_logic;
   offset_value: in std_logic_vector(7 downto 0);
-  out_instruction: out std_logic_vector (15 downto 0));
+  out_instruction: out std_logic_vector (15 downto 0);
+  en_intrpts : out std_logic_vector(3 downto 0);
+  intrpt_in_ret_addr : out std_logic_vector(7 downto 0);
+  intrpt_pc_cont_counting : in std_logic;
+  intrpt_out_jump_addr : in std_logic_vector(7 downto 0);
+  intrpt_store_addr : in std_logic;
+  intrpt_cont_processing : in std_logic
+  );
 end fetch;
 
 architecture structural of fetch is
@@ -68,6 +76,14 @@ signal instruction_Rx_shift_reg_rd : std_logic_vector(11 downto 0) := (others =>
 signal bubble_counter : integer := 0;
 signal sig_bubble_lag : std_logic := '1'; -- for only shifting one instruction after a bubble
 signal sig_pulse_branch_en : std_logic := '0';
+signal sig_rst_timer : std_logic; -- a timer for the system to stabilize 
+signal sig_rst_timer1 : std_logic; -- a timer for the system to stabilize 
+signal sig_rst_timer2 : std_logic; -- a timer for the system to stabilize 
+signal sig_rst_timer3 : std_logic; -- a timer for the system to stabilize 
+signal sig_rst_timer4 : std_logic; -- a timer for the system to stabilize 
+signal sig_rst_timer5 : std_logic; -- a timer for the system to stabilize 
+signal sig_intrpt_cont_processing : std_logic;
+signal sig_RetI : std_logic;
 
 begin --PORT MAP
  
@@ -79,13 +95,52 @@ counter_reversed_mux : two_to1mux1bit
     out1 => sig_counter_reversed
   );
  
+ SYNC : process (clk, rst)
+ begin
+   if (rst = '1') then
+     en_intrpts <= x"0";
+     sig_rst_timer <= '0'; 
+     sig_rst_timer1 <= '1';     
+     sig_rst_timer4 <= '0';
+     sig_rst_timer4 <= '0';
+     sig_rst_timer5 <= '0';
+     sig_intrpt_cont_processing <= '1';
+   elsif (rising_edge(clk)) then
+     sig_rst_timer2 <= sig_rst_timer1;     
+     sig_rst_timer3 <= sig_rst_timer2;
+     sig_rst_timer4 <= sig_rst_timer3;
+     sig_rst_timer5 <= sig_rst_timer4;
+     sig_rst_timer <= sig_rst_timer5;
+     sig_intrpt_cont_processing <= intrpt_cont_processing;     
+     
+     if (intrpt = '1') then
+       intrpt_in_ret_addr <= counter;
+     end if;
+  
+     if (instruction(15 downto 12) = x"F") then
+       sig_RetI <= '1';
+     elsif ( (sig_RetI = '1') and (intrpt_pc_cont_counting = '1') and (intrpt_cont_processing = '1') ) then
+       sig_RetI <= '0';
+     end if;
+  
+     if (instruction(15 downto 12) = x"7") then
+       en_intrpts <= instruction(3 downto 0); 
+     end if;
+  
+   end if;
+ end process;
+ 
 instruction_fetch: process(counter, clk)
 variable var_no_op_bubble : std_logic := '0'; -- to send a no op during bubble
 begin
   
 -- assumption: offset of branch instructions is in R[y]   
+
+
+if (rst = '1') then
+  instruction <= x"FFFF";
   
-if (rising_edge(clk_stage)) then
+elsif (rising_edge(clk_stage)) then
   
 
 if(counter = "00000000") then
@@ -291,7 +346,7 @@ instruction <= "0000000000000000";
 elsif(counter = "01100100") then
 instruction <= x"1111"; -- ADDI r1, 17 ($r1 = 21)
 elsif(counter = "01100101") then
-instruction <= "0000000000000000";
+instruction <= x"7003"; -- Enable interrupts 1 and 2
 elsif(counter = "01100110") then
 instruction <= "0000000000000000";
 elsif(counter = "01100111") then
@@ -328,8 +383,8 @@ elsif(counter = "01110110") then
 instruction <= "0000000000000000";
 elsif(counter = "01110111") then
 instruction <= "0000000000000000";
-elsif(counter = "01111000") then
-instruction <= "0000000000000000";
+elsif(counter = "01111000") then -- addr to return to (main)
+instruction <= x"1101"; -- ADDI r1, 1 ($r1 = 22)
 elsif(counter = "01111001") then
 instruction <= "0000000000000000";
 elsif(counter = "01111010") then
@@ -339,13 +394,13 @@ instruction <= "0000000000000000";
 elsif(counter = "01111100") then
 instruction <= "0000000000000000";
 elsif(counter = x"7D") then -- 1st intrpt addr (125)
-instruction <= "0000000000000000";
+instruction <= x"1401"; -- ADDI r4, 1 ($r4 += 1)
 elsif(counter = "01111110") then
-instruction <= "0000000000000000";
+instruction <= x"1501"; -- ADDI r5, 1 ($r5 += 1)
 elsif(counter = "01111111") then
-instruction <= "0000000000000000";
+instruction <= x"1601"; -- ADDI r6, 1 ($r6 += 1)
 elsif(counter = "10000000") then
-instruction <= "0000000000000000";
+instruction <= x"F000"; -- RETI
 elsif(counter = "10000001") then
 instruction <= "0000000000000000";
 elsif(counter = "10000010") then
@@ -389,13 +444,13 @@ instruction <= "0000000000000000";
 elsif(counter = "10010101") then
 instruction <= "0000000000000000";
 elsif(counter = x"96") then -- 2nd intrpt addr (150)
-instruction <= "0000000000000000";
+instruction <= x"1402"; -- ADDI r4, 2 ($r4 += 2)
 elsif(counter = "10010111") then
-instruction <= "0000000000000000";
+instruction <= x"1502"; -- ADDI r5, 2 ($r5 += 2)
 elsif(counter = "10011000") then
-instruction <= "0000000000000000";
+instruction <= x"1602"; -- ADDI r6, 2 ($r6 += 2)
 elsif(counter = "10011001") then
-instruction <= "0000000000000000";
+instruction <= x"F000"; -- RETI
 elsif(counter = "10011010") then
 instruction <= "0000000000000000";
 elsif(counter = "10011011") then
@@ -439,9 +494,9 @@ instruction <= "0000000000000000";
 elsif(counter = "10101110") then
 instruction <= "0000000000000000";
 elsif(counter = x"AF") then -- third intrpt addr (175)
-instruction <= "0000000000000000";
+instruction <= x"1503"; -- ADDI r5, 3 ($r5 += 3)
 elsif(counter = "10110000") then
-instruction <= "0000000000000000";
+instruction <= x"F000"; -- RETI
 elsif(counter = "10110001") then
 instruction <= "0000000000000000";
 elsif(counter = "10110010") then
@@ -489,9 +544,9 @@ instruction <= "0000000000000000";
 elsif(counter = "11000111") then
 instruction <= "0000000000000000";
 elsif(counter = x"C8") then -- fourth intrpt addr (200)
-instruction <= "0000000000000000";
+instruction <= x"1504"; -- ADDI r5, 4 ($r5 += 4)
 elsif(counter = "11001001") then
-instruction <= "0000000000000000";
+instruction <= x"F000"; -- RETI
 elsif(counter = "11001010") then
 instruction <= "0000000000000000";
 elsif(counter = "11001011") then
@@ -609,7 +664,7 @@ end if;
 
 -- set Rx
 
-if (rising_edge(clk)) then
+if ( (rising_edge(clk)) and (sig_rst_timer = '1') and (sig_intrpt_cont_processing = '1') ) then
     
   
 if ((bubble_counter > 2) and (sig_delay_bubble = '0') ) then -- if bubble time is over, continue counting
@@ -680,7 +735,7 @@ BRANCH_PULSE: process (clk, counter)
 -- shift right the instructions for the bubble
 shift_instructions: process (clk_stage)
 begin
-if (rising_edge(clk_stage)) then
+if (rising_edge(clk_stage) and (intrpt_pc_cont_counting = '1') and (sig_intrpt_cont_processing = '1') ) then
   if ( (sig_bubble = '0') or (bubble_counter > 3) ) then
     if ( (sig_bubble_lag = '1') or (bubble_counter > 3) ) then
       
@@ -690,8 +745,11 @@ if (rising_edge(clk_stage)) then
       
       -- store the registers which the instructions are being written to
       -- always bubble for indirects
-      instruction_shift_reg <= instruction & instruction_shift_reg(47 downto 16);
-    
+      if (sig_RetI = '1') then
+        instruction_shift_reg <= x"F000" & instruction_shift_reg(47 downto 16);  
+      else      
+        instruction_shift_reg <= instruction & instruction_shift_reg(47 downto 16);
+      end if;
 
       if (instruction(15 downto 12) = x"1") then --If add immediate, Rx is in bits 11 - 8.
         instruction_Rx_shift_reg <= instruction(11 downto 8) & instruction_Rx_shift_reg(11 downto 4);
@@ -727,27 +785,33 @@ end if;
 
 end process;
 
-count: process(sig_pulse_branch_en,branch_addr,clk_stage,offset_enable,offset_value, rst, sig_bubble)
+count: process(sig_pulse_branch_en,branch_addr,clk_stage,offset_enable,offset_value, rst, sig_bubble, intrpt_store_addr, sig_rst_timer)
 variable var_count : integer := 0;
 
 begin
+  
   if (rst = '1') then
     counter <= (others => '0');
-  elsif (sig_pulse_branch_en = '1') then
-    counter <= branch_addr;
-  elsif ( (sig_bubble = '1') and (sig_counter_reversed = '0') ) then
-    --decrement counter minus one to ensure the next instruction after bubble ends is not one ahead
-    counter  <= counter - 1;
-    sig_counter_reversed_no_bubble <= '1';
-  elsif ( (rising_edge(clk_stage)) and (bubble_counter = 4) ) then
-    counter <= counter + "00000001";
-  elsif(instruction(15 downto 12) = "1100") then --If jump instruction, jump to specified address
-    counter <= instruction(7 downto 0);
-  elsif(offset_enable = '1') then --If branch instruction, add offset
-    counter <= counter + offset_value;
-  elsif ( rising_edge(clk_stage) and (sig_bubble = '0') ) then
-    sig_counter_reversed_no_bubble <= '0';
-    counter <= counter + "00000001";
+  elsif ( (intrpt_store_addr = '1') and (sig_rst_timer = '1') ) then
+      counter <= intrpt_out_jump_addr;
+  elsif ( (intrpt_pc_cont_counting = '1') and (sig_rst_timer = '1') ) then
+  
+    if (sig_pulse_branch_en = '1') then
+      counter <= branch_addr;
+    elsif ( (sig_bubble = '1') and (sig_counter_reversed = '0') ) then
+      --decrement counter minus one to ensure the next instruction after bubble ends is not one ahead
+      counter  <= counter - 1;
+      sig_counter_reversed_no_bubble <= '1';
+    elsif ( (rising_edge(clk_stage)) and (bubble_counter = 4) ) then
+      counter <= counter + "00000001";
+    elsif(instruction(15 downto 12) = "1100") then --If jump instruction, jump to specified address
+      counter <= instruction(7 downto 0);
+    elsif(offset_enable = '1') then --If branch instruction, add offset
+      counter <= counter + offset_value;
+    elsif ( rising_edge(clk_stage) and (sig_bubble = '0') ) then
+      sig_counter_reversed_no_bubble <= '0';
+      counter <= counter + "00000001";
+    end if;
   end if;
 
 end process;

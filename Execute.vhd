@@ -120,7 +120,11 @@ begin --PORT MAP
       sig_intrpt_output_en <= intrpt_output_en;
       
       if (sig_out_mux_writeEnable = '1') then
-        if (var_counter MOD 8 = 0) then
+
+        if (intrpt_output_en = '1') then
+          sig_pulse_writeEnable <= '1';
+          
+        elsif (var_counter MOD 8 = 0) then
           sig_pulse_writeEnable <= '1';
         else
           sig_pulse_writeEnable <= '0';

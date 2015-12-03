@@ -4,47 +4,50 @@ use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 
 entity execute is --Declare the top-level entity and all major inputs/outputs
+  generic (INSTRUCTION_WIDTH : integer := 16; REG_ADDRESS_WIDTH : integer := 4; ADDRESS_WIDTH : integer := 8; DATA_WIDTH : integer := 8);
   port ( 
           rst : in std_logic;
-          instruction_in: in std_logic_vector(15 downto 0);
+          instruction_in: in std_logic_vector((INSTRUCTION_WIDTH-1) downto 0);
           clk: in std_logic;
           clk_stage: in std_logic;
-          Rx, Ry : in std_logic_vector(3 downto 0);
+          Rx, Ry : in std_logic_vector((REG_ADDRESS_WIDTH-1) downto 0);
           mem_addr_sel : in std_logic_vector(1 downto 0);
-          writeback: in std_logic_vector(7 downto 0);
+          writeback: in std_logic_vector((DATA_WIDTH-1) downto 0);
           writeEnable: in std_logic;
-          writeAdd: in std_logic_vector(3 downto 0);
-          output: out std_logic_vector(7 downto 0);
-          mem_addr: out std_logic_vector(7 downto 0);
-          X, Y : out std_logic_vector(7 downto 0);
+          writeAdd: in std_logic_vector((REG_ADDRESS_WIDTH-1) downto 0);
+          output: out std_logic_vector((DATA_WIDTH-1) downto 0);
+          mem_addr: out std_logic_vector((ADDRESS_WIDTH-1) downto 0);
+          X, Y : out std_logic_vector((DATA_WIDTH-1) downto 0);
           intrpt_output_en : in std_logic;
           intrpt_wr_reg : in std_logic;
-          intrpt_Din : out std_logic_vector(7 downto 0);          
-          intrpt_Dout : in std_logic_vector(7 downto 0);
-          intrpt_reg_addr : in std_logic_vector(3 downto 0)
+          intrpt_Din : out std_logic_vector((DATA_WIDTH-1) downto 0);          
+          intrpt_Dout : in std_logic_vector((DATA_WIDTH-1) downto 0);
+          intrpt_reg_addr : in std_logic_vector((REG_ADDRESS_WIDTH-1) downto 0)
           );
 end execute;
 
 architecture structural of execute is 
 
-signal sig_X, sig_Y : std_logic_vector(7 downto 0);
+signal sig_X, sig_Y : std_logic_vector((DATA_WIDTH-1) downto 0);
 signal sig_pulse_writeEnable : std_logic;
 
 -- interrupt signals
-signal sig_intrpt_Din : std_logic_vector(7 downto 0);
+signal sig_intrpt_Din : std_logic_vector((DATA_WIDTH-1) downto 0);
 -- to/from execute
 signal sig_intrpt_wr_reg : std_logic;    
-signal sig_intrpt_Dout : std_logic_vector(7 downto 0);
-signal sig_intrpt_reg_addr : std_logic_vector(3 downto 0);
-signal sig_out_mux_Rx : std_logic_vector(3 downto 0);
-signal sig_out_mux_writeback : std_logic_vector(7 downto 0);
+signal sig_intrpt_Dout : std_logic_vector((DATA_WIDTH-1) downto 0);
+signal sig_intrpt_reg_addr : std_logic_vector((REG_ADDRESS_WIDTH-1) downto 0);
+signal sig_out_mux_Rx : std_logic_vector((REG_ADDRESS_WIDTH-1) downto 0);
+signal sig_out_mux_writeback : std_logic_vector((DATA_WIDTH-1) downto 0);
 signal sig_out_mux_writeEnable : std_logic;
-signal sig_out_mux_writeAdd : std_logic_vector(3 downto 0);
-signal sig_out_mux_sig_X : std_logic_vector(7 downto 0);
+signal sig_out_mux_writeAdd : std_logic_vector((REG_ADDRESS_WIDTH-1) downto 0);
+signal sig_out_mux_sig_X : std_logic_vector((DATA_WIDTH-1) downto 0);
 signal sig_intrpt_output_en : std_logic;
 
 begin --PORT MAP
-  alu_unit : entity work.ALU port map (
+  alu_unit : entity work.ALU
+  generic map (DATA_WIDTH => DATA_WIDTH, INSTRUCTION_WIDTH => INSTRUCTION_WIDTH)
+  port map (
         X => sig_X,
         Y => sig_Y,
         clk => clk,
@@ -53,7 +56,9 @@ begin --PORT MAP
         output => output
     );
         
-  r_bank : entity work.register_bank port map (
+  r_bank : entity work.register_bank
+  generic map(INSTRUCTION_WIDTH => INSTRUCTION_WIDTH, DATA_WIDTH => DATA_WIDTH, REG_ADDRESS_WIDTH => REG_ADDRESS_WIDTH)
+  port map (
         rst => rst,
         instruction_in => instruction_in,
         clk => clk,
@@ -102,7 +107,7 @@ begin --PORT MAP
       elsif (mem_addr_sel = "10") then -- ST Indirect
         mem_addr <= sig_X;
       elsif (mem_addr_sel = "11") then -- LD Register, STR Register
-        mem_addr <= instruction_in(7 downto 0); -- set to lower 8 bits of instruction   
+        mem_addr <= instruction_in((ADDRESS_WIDTH-1) downto 0); -- set to lower 8 bits of instruction   
       end if;   
   
     end if;
@@ -148,12 +153,13 @@ use ieee.numeric_std.all;
 
 
 entity ALU is
+  generic (DATA_WIDTH : integer := 8; INSTRUCTION_WIDTH : integer := 16);
   port(
-    X,Y: in std_logic_vector(7 downto 0);
+    X,Y: in std_logic_vector((DATA_WIDTH-1) downto 0);
     clk: in std_logic;
     clk_stage: in std_logic;
-    instruction_in: in std_logic_vector(15 downto 0);
-    output: out std_logic_vector(7 downto 0)
+    instruction_in: in std_logic_vector((INSTRUCTION_WIDTH-1) downto 0);
+    output: out std_logic_vector((DATA_WIDTH-1) downto 0)
     );
   end ALU;
   
@@ -214,7 +220,7 @@ entity ALU is
           output <= "11111111";         
         
         elsif(instruction_in(15 downto 12)="0001") then --Add Immediate. Confirmed Working.
-          output <= X + instruction_in(7 downto 0);    
+          output <= X + instruction_in((DATA_WIDTH-1) downto 0);    
           
         elsif(instruction_in(15 downto 8)="01011000") then --Move. Confirmed Working.
           output <= X;     
@@ -246,21 +252,22 @@ use ieee.std_logic_unsigned.all;
 use IEEE.NUMERIC_STD.ALL;
 
 entity register_bank is 
-  
+  generic (INSTRUCTION_WIDTH : integer := 16; DATA_WIDTH : integer := 8; REG_ADDRESS_WIDTH : integer := 4);
   port(
         rst : in std_logic;
-        instruction_in: in std_logic_vector(15 downto 0);
+        instruction_in: in std_logic_vector((INSTRUCTION_WIDTH-1) downto 0);
         clk: in std_logic;
-        Rx, Ry : in std_logic_vector(3 downto 0);
-        writeback: in std_logic_vector (7 downto 0);
+        Rx, Ry : in std_logic_vector((REG_ADDRESS_WIDTH-1) downto 0);
+        writeback: in std_logic_vector ((DATA_WIDTH-1) downto 0);
         writeEnable: in std_logic;
-        writeAdd: in std_logic_vector(3 downto 0);
-        X, Y : out std_logic_vector(7 downto 0));        
+        writeAdd: in std_logic_vector((REG_ADDRESS_WIDTH-1) downto 0);
+        X, Y : out std_logic_vector((DATA_WIDTH-1) downto 0)
+        );   
 end register_bank;
 
 architecture behavior of register_bank is
   
-  type vector_array is array(0 to 15) of std_logic_vector(7 downto 0);
+  type vector_array is array(0 to 15) of std_logic_vector((DATA_WIDTH-1) downto 0);
   signal reg : vector_array := (others => (others => '0'));
 
   

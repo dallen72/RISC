@@ -4,12 +4,13 @@ use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 
 entity decoder is
+  generic (INSTRUCTION_WIDTH : integer := 16; REG_ADDR_WIDTH : integer := 4);
   port (
     rst : in std_logic;
     clk : in std_logic;
-    instruction_in : in std_logic_vector(15 downto 0); -- comes in from fetch pipeline
-    Rx : out std_logic_vector(3 downto 0);
-    Ry : out std_logic_vector(3 downto 0);
+    instruction_in : in std_logic_vector((INSTRUCTION_WIDTH-1) downto 0); -- comes in from fetch pipeline
+    Rx : out std_logic_vector((REG_ADDR_WIDTH-1) downto 0);
+    Ry : out std_logic_vector((REG_ADDR_WIDTH-1) downto 0);
     mem_wr_en : out std_logic; -- goes out to execute
     mem_addr_sel : out std_logic_vector(1 downto 0); -- goes out to execute
     reg_file_Din_sel : out std_logic; -- goes out to execute.Determines if An arithmetic instruction or Load instruction
@@ -20,7 +21,7 @@ entity decoder is
 end decoder;
 
 architecture behav of decoder is
-signal instruction : std_logic_vector(15 downto 0);
+signal instruction : std_logic_vector((INSTRUCTION_WIDTH-1) downto 0);
 begin
   
   sync : process(clk)
@@ -98,12 +99,12 @@ begin
       or ( (instruction(15 downto 12) = x"D") or (instruction(15 downto 12) = x"E") ) ) then -- branch instructions  
       
       Rx <= instruction(11 downto 8);
-      Ry <= instruction(3 downto 0);
+      Ry <= instruction((REG_ADDR_WIDTH-1) downto 0);
     elsif ( (instruction(15 downto 13) = "001") -- Arithmetic
           or ( instruction(15 downto 13) = "010") -- Logicals
           or ( instruction(15 downto 13) = "100") ) then -- Indirects
       Rx <= instruction(7 downto 4);
-      Ry <= instruction(3 downto 0);      
+      Ry <= instruction((REG_ADDR_WIDTH-1) downto 0);      
     end if;
   end if;
     

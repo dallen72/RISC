@@ -6,32 +6,32 @@ use ieee.numeric_std.ALL;
 
 
 entity Writeback is
-  generic (ADDRESS_WIDTH : integer := 8; DATA_WIDTH : integer := 8);
+  generic (ADDRESS_WIDTH : integer := 8; DATA_WIDTH : integer := 8; REG_ADDR_WIDTH : integer := 4);
   port(
     rst : in std_logic;
     clk : in std_logic;
     clk_stage : in std_logic;
-    Rx : in std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);
-    Ry : in std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);
+    Rx : in std_logic_vector((REG_ADDR_WIDTH)-1 downto 0);
+    Ry : in std_logic_vector((REG_ADDR_WIDTH)-1 downto 0);
     opcode : in std_logic_vector(DATA_WIDTH-1 downto 0);    
     mem_addr : in std_logic_vector(ADDRESS_WIDTH-1 downto 0); -- from execute
     ALU_output : in std_logic_vector(DATA_WIDTH-1 downto 0); -- from execute
     mem_wr_en : in std_logic; -- comes from decode, through execute to writeback
     mem_rd_en : in std_logic;
     reg_file_Din_sel : in std_logic; -- comes from decode, through execute to writeback
-    X : in std_logic_vector(7 downto 0);
-    Y : in std_logic_vector(7 downto 0);   
+    X : in std_logic_vector((DATA_WIDTH-1) downto 0);
+    Y : in std_logic_vector((DATA_WIDTH-1) downto 0);   
     reg_file_Din : out std_logic_vector(DATA_WIDTH-1 downto 0);
-    reg_file_wr_addr : out std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);
+    reg_file_wr_addr : out std_logic_vector((REG_ADDR_WIDTH)-1 downto 0);
     branch_en : out std_logic;
     RetI : out std_logic;
-    top_correct_value: in std_logic_vector(7 downto 0);
-    top_correct_address: in std_logic_vector (7 downto 0);
+    top_correct_value: in std_logic_vector((DATA_WIDTH-1) downto 0);
+    top_correct_address: in std_logic_vector ((ADDRESS_WIDTH-1) downto 0);
     top_correct_enable: in std_logic;
-    top_request_value: in std_logic_vector (7 downto 0);
-    top_request_address : in std_logic_vector (7 downto 0);
-    top_MM_address : out std_logic_vector (7 downto 0);
-    top_MM_value : out std_logic_vector (7 downto 0);
+    top_request_value: in std_logic_vector ((DATA_WIDTH-1) downto 0);
+    top_request_address : in std_logic_vector ((ADDRESS_WIDTH-1) downto 0);
+    top_MM_address : out std_logic_vector ((ADDRESS_WIDTH-1) downto 0);
+    top_MM_value : out std_logic_vector ((DATA_WIDTH-1) downto 0);
     top_MM_DB : out std_logic
   );
 end entity;
@@ -206,20 +206,20 @@ end behav;
 
 
 architecture behav of Writeback is
-  signal sig_mem_Din : std_logic_vector(7 downto 0) := (others => '0');
-  signal sig_mem_Dout : std_logic_vector(7 downto 0);
+  signal sig_mem_Din : std_logic_vector((DATA_WIDTH-1) downto 0) := (others => '0');
+  signal sig_mem_Dout : std_logic_vector((DATA_WIDTH-1) downto 0);
   signal sig_mem_wr_en : std_logic := '0';
-  signal sig_indirect_Din_X : std_logic_vector(7 downto 0); -- to delay X and Y for indirect instructions
-  signal sig_indirect_Din_Y : std_logic_vector(7 downto 0);
+  signal sig_indirect_Din_X : std_logic_vector((DATA_WIDTH-1) downto 0); -- to delay X and Y for indirect instructions
+  signal sig_indirect_Din_Y : std_logic_vector((DATA_WIDTH-1) downto 0);
   signal sig_branch_en : std_logic := '0';
-  signal sig_mem_addr : std_logic_vector(7 downto 0);
+  signal sig_mem_addr : std_logic_vector((ADDRESS_WIDTH-1) downto 0);
 
   -- signals for extra credit
   signal request_enable: std_logic;
-  signal MM_ADDRESS: std_logic_vector(7 downto 0);---------------------------------------------------------------------------------------
-  signal MM_VALUE: std_logic_vector(7 downto 0);------------------------------------------------------------------------------------
+  signal MM_ADDRESS: std_logic_vector((ADDRESS_WIDTH-1) downto 0);---------------------------------------------------------------------------------------
+  signal MM_VALUE: std_logic_vector((DATA_WIDTH-1) downto 0);------------------------------------------------------------------------------------
   signal MM_DB: std_logic;
-  signal sig_request_address : std_logic_vector(7 downto 0);  
+  signal sig_request_address : std_logic_vector((ADDRESS_WIDTH-1) downto 0);  
   
 begin
   

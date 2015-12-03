@@ -385,8 +385,8 @@ elsif(counter = "01110111") then
 instruction <= "0000000000000000";
 elsif(counter = "01111000") then -- addr to return to (main)
 instruction <= x"1101"; -- ADDI r1, 1 ($r1 = 22)
-elsif(counter = "01111001") then
-instruction <= "0000000000000000";
+elsif(counter = x"79") then
+instruction <= x"C0DC";  -- jump to instruction 220
 elsif(counter = "01111010") then
 instruction <= "0000000000000000";
 elsif(counter = "01111011") then
@@ -583,8 +583,8 @@ elsif(counter = "11011010") then
 instruction <= "0000000000000000";
 elsif(counter = "11011011") then
 instruction <= "0000000000000000";
-elsif(counter = "11011100") then
-instruction <= "0000000000000000";
+elsif(counter = x"DC") then -- instruction 220
+instruction <= x"B203";  -- Store $r2, 3 (MEM[3] = 3)
 elsif(counter = "11011101") then
 instruction <= "0000000000000000";
 elsif(counter = "11011110") then

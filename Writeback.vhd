@@ -91,8 +91,6 @@ signal add_arr : addr_array := ("00000000", "00000001", "00000010", "00000011", 
 signal data_mem_ptr : integer := 0; --------------------------------------------------------------------------------------------Pointer used to select which address to overwrite in Data Memory when a new address is requested from Main Memory
 signal sig_invalid_mem_delay : std_logic;
 signal sig_WR : std_logic; -- signal for WR
-signal sig_MM_ADDRESS: std_logic_vector(7 downto 0);
-signal sig_MM_VALUE: std_logic_vector (WIDTH-1 downto 0);
 signal sig_MM_DB: std_logic;
 
 
@@ -112,12 +110,14 @@ begin
     end if;
   end process;
       
-  SYNC: process (clk, WR, rd, rst, clk_stage)
+  SYNC: process (clk, WR, rd, rst, clk_stage, addr)
     variable need_request : std_logic := '0';--------------------------------------------------------------------------------Used to indicate when a request is to be made
     
     begin
     
-    
+    if (rising_edge(clk)) then
+      MM_DB <= sig_MM_DB;
+    end if;
     
     if (rst = '1') then
       sig_WR <= '0';
@@ -126,13 +126,10 @@ begin
       data_mem_ptr <= 0;
       sig_db <= (others => '0');
       sig_db_buffer <= (others => '0'); 
-      sig_MM_ADDRESS <= (others => '0');
-      sig_MM_VALUE <= (others => '0');
                  
     elsif (falling_edge(clk)) then
       sig_WR <= WR;
-      MM_ADDRESS <= sig_MM_ADDRESS;
-      MM_VALUE <= sig_MM_VALUE;
+      MM_ADDRESS <= ADDR;
       
       for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop
         if ((unsigned(add_arr(I)) = unsigned(ADDR))) then ------------------------------------------------------------------If the input ADDR matches any address in Data Memory, a request to Main Memory does not need to be made
@@ -175,21 +172,21 @@ begin
             sig_db_buffer(I) <= '1';
           end if;
         end loop;
+      else
+        if (sig_MM_DB <= '1') then
+          sig_MM_DB <= '0';
+        end if;
         for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop----------------------------------------------------------------------
           if (sig_db(I) = '1') then -------------------------------------------------------------------------------------If a dirty bit is high...
             MM_ADDRESS <= add_arr(I);-----------------------------------------------------------------------------------Output the address to Main Memory
             MM_VALUE <= sig_mem(I);-------------------------------------------------------------------------------------Output the value to Main Memory
             sig_db_buffer(I) <= '0';
             sig_db(I) <= sig_db_buffer(I);------------------------------------------------------------------------------------------Reset the dirty bit
-            MM_DB <= '1';-----------------------------------------------------------------------------------------------Send a flag to Main Memory indicating a dirty bit has been found
+            sig_MM_DB <= '1';-----------------------------------------------------------------------------------------------Send a flag to Main Memory indicating a dirty bit has been found
           end if;---------------------------------------------------------------------------------------------------------------
         end loop;-----------------------------------------------------------------------------------------------------------
-      else
-        MM_DB <= '0';-----------------------------------------------------------------------------------------------Send a flag to Main Memory indicating a dirty bit has been found
-        sig_invalid_mem_delay <= '0';            
-      end if;        
+      end if;
     end if;
-    
     
     
     

@@ -81,7 +81,6 @@ signal sig_pulse_wr_en : std_logic;
 
 Type dirty_bits is ARRAY (0 to (2**(ADDRESS_WIDTH-3))-1) of STD_LOGIC;-----------------------------------------------------------
 signal sig_db : dirty_bits := (others => '0');-------------------------------------------------------------------------------Array of dirty bits to accompany addresses in Data Memory
-signal sig_db_buffer : dirty_bits := (others => '0');
 
 Type addr_array is ARRAY (0 to (2**(ADDRESS_WIDTH-3))-1) of STD_LOGIC_VECTOR (WIDTH-1 downto 0); ------------------------------Array of addresses in Data Memory
 signal add_arr : addr_array := ("00000000", "00000001", "00000010", "00000011", "00000100", "00000101", "00000110", "00000111",
@@ -125,7 +124,6 @@ begin
       sig_MM_DB <= '0';-----------------------------------------------------------------------------------------------------------Reset MM_DB
       data_mem_ptr <= 0;
       sig_db <= (others => '0');
-      sig_db_buffer <= (others => '0'); 
                  
     elsif (falling_edge(clk)) then
       sig_WR <= WR;
@@ -145,8 +143,10 @@ begin
               sig_mem(I) <= correct_value;--------------------------------------------------------------------------------------If the address for the changed value is in Data Memory, change to the new value
             else
               sig_mem(I) <= correct_value;--------------------------------------------------------------------------------------If the address for the changed value is in Data Memory, change to the new value              
-              add_arr(data_mem_ptr) <= request_address;---------------------------------------------------------------Pointed to address is overwritten by address obtained from Main Memory
-              sig_mem(data_mem_ptr) <= request_value;-----------------------------------------------------------------Pointed to value is overwritten by value obtained from Main Memory
+              if (need_request = '1') then
+                add_arr(data_mem_ptr) <= request_address;---------------------------------------------------------------Pointed to address is overwritten by address obtained from Main Memory
+                sig_mem(data_mem_ptr) <= request_value;-----------------------------------------------------------------Pointed to value is overwritten by value obtained from Main Memory
+              end if;
               if (data_mem_ptr = 31) then----------------------------------------------------------------------------If pointed exceeds maximum array location...
                 data_mem_ptr <= 0;------------------------------------------------------------------------------------Reset pointer to 0
               else
@@ -169,19 +169,17 @@ begin
           if (unsigned(add_arr(I)) = unsigned(ADDR)) then
             sig_mem(I) <= DIN;
             sig_db(I) <= '1';-------------------------------------------------------------------------------------------The dirty bit for the address goes high whenever the value in the address has been written to
-            sig_db_buffer(I) <= '1';
           end if;
         end loop;
       else
-        if (sig_MM_DB <= '1') then
+        if (sig_MM_DB = '1') then
           sig_MM_DB <= '0';
         end if;
         for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop----------------------------------------------------------------------
           if (sig_db(I) = '1') then -------------------------------------------------------------------------------------If a dirty bit is high...
             MM_ADDRESS <= add_arr(I);-----------------------------------------------------------------------------------Output the address to Main Memory
             MM_VALUE <= sig_mem(I);-------------------------------------------------------------------------------------Output the value to Main Memory
-            sig_db_buffer(I) <= '0';
-            sig_db(I) <= sig_db_buffer(I);------------------------------------------------------------------------------------------Reset the dirty bit
+            sig_db(I) <= '0';------------------------------------------------------------------------------------------Reset the dirty bit
             sig_MM_DB <= '1';-----------------------------------------------------------------------------------------------Send a flag to Main Memory indicating a dirty bit has been found
           end if;---------------------------------------------------------------------------------------------------------------
         end loop;-----------------------------------------------------------------------------------------------------------

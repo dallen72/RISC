@@ -32,20 +32,21 @@ use ieee.std_logic_unsigned.all;
 use IEEE.NUMERIC_STD.ALL;
 
 entity fetch is --Declare the top-level entity and all major inputs/outputs
+generic (ADDRESS_WIDTH : integer := 8; INSTRUCTION_WIDTH : integer := 16; INTRPT_BIT_WIDTH : integer := 4; REG_ADDR_WIDTH : integer := 4);
 port (
   rst : in std_logic;
   intrpt : in std_logic;
   branch_en: in std_logic;
-  branch_addr: in std_logic_vector(7 downto 0);
+  branch_addr: in std_logic_vector((ADDRESS_WIDTH-1) downto 0);
   clk: in std_logic;
   clk_stage : in std_logic;
   offset_enable: in std_logic;
-  offset_value: in std_logic_vector(7 downto 0);
-  out_instruction: out std_logic_vector (15 downto 0);
-  en_intrpts : out std_logic_vector(3 downto 0);
-  intrpt_in_ret_addr : out std_logic_vector(7 downto 0);
+  offset_value: in std_logic_vector((ADDRESS_WIDTH-1) downto 0);
+  out_instruction: out std_logic_vector ((INSTRUCTION_WIDTH-1) downto 0);
+  en_intrpts : out std_logic_vector((INTRPT_BIT_WIDTH-1) downto 0);
+  intrpt_in_ret_addr : out std_logic_vector((ADDRESS_WIDTH-1) downto 0);
   intrpt_pc_cont_counting : in std_logic;
-  intrpt_out_jump_addr : in std_logic_vector(7 downto 0);
+  intrpt_out_jump_addr : in std_logic_vector((ADDRESS_WIDTH-1) downto 0);
   intrpt_store_addr : in std_logic;
   intrpt_cont_processing : in std_logic
   );
@@ -62,17 +63,17 @@ component two_to1mux1bit
   );
 end component;
   
-signal counter : std_logic_vector(7 downto 0) := (others => '0');
+signal counter : std_logic_vector((ADDRESS_WIDTH-1) downto 0) := (others => '0');
 signal sig_bubble : std_logic := '0';
 signal sig_counter_reversed : std_logic := '1'; -- these three used for decrementing the counter after a bubble has began
 signal sig_counter_reversed_bubble : std_logic := '1';
 signal sig_counter_reversed_no_bubble : std_logic := '0';
 signal sig_delay_bubble : std_logic := '0';
-signal temp_counter : std_logic_vector(7 downto 0);
-signal instruction : std_logic_vector(15 downto 0);
-signal instruction_shift_reg : std_logic_vector(47 downto 0) := (others => '0'); -- shifts last three instructions
-signal instruction_Rx_shift_reg : std_logic_vector(11 downto 0) := (others => '0'); -- shifts Rx's of last three instructions
-signal instruction_Rx_shift_reg_rd : std_logic_vector(11 downto 0) := (others => '0'); -- shifts the Rx to be read of last three instructions
+signal temp_counter : std_logic_vector((ADDRESS_WIDTH-1) downto 0);
+signal instruction : std_logic_vector((INSTRUCTION_WIDTH-1) downto 0);
+signal instruction_shift_reg : std_logic_vector((INSTRUCTION_WIDTH*3-1) downto 0) := (others => '0'); -- shifts last three instructions
+signal instruction_Rx_shift_reg : std_logic_vector((REG_ADDR_WIDTH*3-1) downto 0) := (others => '0'); -- shifts Rx's of last three instructions
+signal instruction_Rx_shift_reg_rd : std_logic_vector((REG_ADDR_WIDTH*3-1) downto 0) := (others => '0'); -- shifts the Rx to be read of last three instructions
 signal bubble_counter : integer := 0;
 signal sig_bubble_lag : std_logic := '1'; -- for only shifting one instruction after a bubble
 signal sig_pulse_branch_en : std_logic := '0';
@@ -124,7 +125,7 @@ counter_reversed_mux : two_to1mux1bit
      end if;
   
      if (instruction(15 downto 12) = x"7") then
-       en_intrpts <= instruction(3 downto 0); 
+       en_intrpts <= instruction((INTRPT_BIT_WIDTH-1) downto 0); 
      end if;
   
    end if;
@@ -678,15 +679,15 @@ elsif ( (sig_bubble = '0') and (counter > 0)
     or (instruction(15 downto 12) /= "1001") -- not store indirect
     or (instruction(15 downto 12) /= "1001") -- not store register
     )
-  and (instruction_Rx_shift_reg(3 downto 0) /= x"0") ) then
+  and (instruction_Rx_shift_reg((REG_ADDR_WIDTH-1) downto 0) /= x"0") ) then
   
-  if ( (instruction_Rx_shift_reg(3 downto 0) /= x"0")
-     and ( (instruction_Rx_shift_reg(3 downto 0) = instruction_Rx_shift_reg(11 downto 8) )
-        or (instruction_Rx_shift_reg(3 downto 0) = instruction_Rx_shift_reg(7 downto 4) ) 
-        or (instruction_shift_reg(3 downto 0) = x"8") -- load ind
-        or (instruction_shift_reg(3 downto 0) = x"9") -- store ind
-        or (instruction_Rx_shift_reg_rd(3 downto 0) = instruction_Rx_shift_reg(11 downto 8) ) -- bubble for registers that need to be read from
-        or (instruction_Rx_shift_reg_rd(3 downto 0) = instruction_Rx_shift_reg(7 downto 4) ) 
+  if ( (instruction_Rx_shift_reg((REG_ADDR_WIDTH-1) downto 0) /= x"0")
+     and ( (instruction_Rx_shift_reg((REG_ADDR_WIDTH-1) downto 0) = instruction_Rx_shift_reg(11 downto 8) )
+        or (instruction_Rx_shift_reg((REG_ADDR_WIDTH-1) downto 0) = instruction_Rx_shift_reg(7 downto 4) ) 
+        or (instruction_shift_reg((INSTRUCTION_WIDTH/4-1) downto 0) = x"8") -- load ind
+        or (instruction_shift_reg((INSTRUCTION_WIDTH/4-1) downto 0) = x"9") -- store ind
+        or (instruction_Rx_shift_reg_rd((REG_ADDR_WIDTH-1) downto 0) = instruction_Rx_shift_reg(11 downto 8) ) -- bubble for registers that need to be read from
+        or (instruction_Rx_shift_reg_rd((REG_ADDR_WIDTH-1) downto 0) = instruction_Rx_shift_reg(7 downto 4) ) 
       ) ) then
     sig_bubble <= '1';
     sig_delay_bubble <= '1';
@@ -704,7 +705,7 @@ end if;
 if ( (var_no_op_bubble = '1') and (rising_edge(clk_stage)) ) then
     out_instruction <= "0000000000000000";
 elsif ( (sig_bubble = '0') ) then
-    out_instruction <= instruction_shift_reg(15 downto 0);
+    out_instruction <= instruction_shift_reg((INSTRUCTION_WIDTH-1) downto 0);
     var_no_op_bubble := '0';
 elsif (sig_bubble = '1') then
   var_no_op_bubble := '1';
@@ -760,7 +761,7 @@ if (rising_edge(clk_stage) and (intrpt_pc_cont_counting = '1') and (sig_intrpt_c
         instruction_Rx_shift_reg_rd <= x"0" & instruction_Rx_shift_reg_rd(11 downto 4);        
         
       elsif (instruction(15 downto 8) = "01011000") then -- move instruction
-        instruction_Rx_shift_reg <= instruction(3 downto 0) & instruction_Rx_shift_reg(11 downto 4);
+        instruction_Rx_shift_reg <= instruction((REG_ADDR_WIDTH-1) downto 0) & instruction_Rx_shift_reg(11 downto 4);
         instruction_Rx_shift_reg_rd <= instruction(7 downto 4) & instruction_Rx_shift_reg_rd(11 downto 4);                    
         
       elsif (instruction(15 downto 12) = x"A") then -- LD Reg
@@ -805,7 +806,7 @@ begin
     elsif ( (rising_edge(clk_stage)) and (bubble_counter = 4) ) then
       counter <= counter + "00000001";
     elsif(instruction(15 downto 12) = "1100") then --If jump instruction, jump to specified address
-      counter <= instruction(7 downto 0);
+      counter <= instruction((ADDRESS_WIDTH-1) downto 0);
     elsif(offset_enable = '1') then --If branch instruction, add offset
       counter <= counter + offset_value;
     elsif ( rising_edge(clk_stage) and (sig_bubble = '0') ) then

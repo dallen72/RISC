@@ -4,24 +4,24 @@ use ieee.std_logic_unsigned.all;
 use IEEE.NUMERIC_STD.ALL;
 
 entity main_memory is 
-  
+  generic (ADDRESS_WIDTH : integer := 8; DATA_WIDTH : integer := 8);
   port(
     
         rst : in std_logic;
         clk: in std_logic;
         
-        ADDR_A, ADDR_B: in std_logic_vector(7 downto 0);
+        ADDR_A, ADDR_B: in std_logic_vector((ADDRESS_WIDTH-1) downto 0);
         
         dirty_bit_A, dirty_bit_B: in std_logic; --Enables overwriting the value of the input memory address
         
-        overwrite_address_A, overwrite_address_B: in std_logic_vector(7 downto 0); --Memory address being overwritten
-        overwrite_value_A, overwrite_value_B: in std_logic_vector(7 downto 0); --Value to overwrite former value at overwrite_address
+        overwrite_address_A, overwrite_address_B: in std_logic_vector((ADDRESS_WIDTH-1) downto 0); --Memory address being overwritten
+        overwrite_value_A, overwrite_value_B: in std_logic_vector((DATA_WIDTH-1) downto 0); --Value to overwrite former value at overwrite_address
         
-        request_response_value_A, request_response_value_B: out std_logic_vector(7 downto 0); --Value outputted when requested by Data Memory
-        request_response_address_A, request_response_address_B: out std_logic_vector(7 downto 0); --Memory address outputted when requested by Data Memory
+        request_response_value_A, request_response_value_B: out std_logic_vector((DATA_WIDTH-1) downto 0); --Value outputted when requested by Data Memory
+        request_response_address_A, request_response_address_B: out std_logic_vector((ADDRESS_WIDTH-1) downto 0); --Memory address outputted when requested by Data Memory
         
-        correct_value_A, correct_value_B: out std_logic_vector(7 downto 0); --Value outputted to other Data Memory to keep consistency
-        correct_address_A, correct_address_B: out std_logic_vector(7 downto 0); --Memory Address associated with correct_value
+        correct_value_A, correct_value_B: out std_logic_vector((DATA_WIDTH-1) downto 0); --Value outputted to other Data Memory to keep consistency
+        correct_address_A, correct_address_B: out std_logic_vector((ADDRESS_WIDTH-1) downto 0); --Memory Address associated with correct_value
         correct_enable_A, correct_enable_B: out std_logic); --Indicates a change has been made to Main Memory and the address/value need to be checked in Data Memory
         
         
@@ -30,7 +30,7 @@ entity main_memory is
 end main_memory;
 
 architecture behavior of main_memory is
-type mem is array(255 downto 0) of std_logic_vector(7 downto 0);
+type mem is array(255 downto 0) of std_logic_vector((DATA_WIDTH-1) downto 0);
 signal mem1_1 : mem;
 
 

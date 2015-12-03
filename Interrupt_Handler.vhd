@@ -4,26 +4,27 @@ use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 
 entity interrupt_handler is
+  generic (DATA_WIDTH : integer := 8; ADDRESS_WIDTH : integer := 8; REG_ADDR_WIDTH : integer := 8; INTRPT_BIT_WIDTH : integer := 4);
   port (
     rst : in std_logic;
     clk : in std_logic;
     intrpt : in std_logic; -- from top level. Signals that an interrupt has been activated
     
     -- from execute
-    Din : in std_logic_vector(7 downto 0);
+    Din : in std_logic_vector((DATA_WIDTH-1) downto 0);
     -- to execute
     output_en_intrpt_handler : out std_logic; -- goes to execute stage. High enables write/read to scratchpad. = NOT pc_cont_counting
     wr_reg : out std_logic;    
-    Dout : out std_logic_vector(7 downto 0);
-    reg_addr : out std_logic_vector(3 downto 0);
+    Dout : out std_logic_vector((DATA_WIDTH-1) downto 0);
+    reg_addr : out std_logic_vector((REG_ADDR_WIDTH-1) downto 0);
     
     -- from fetch 
     in_RetI : in std_logic;    
-    in_ret_addr : in std_logic_vector(7 downto 0);    
-    en_intrpt : in std_logic_vector(3 downto 0);    
+    in_ret_addr : in std_logic_vector((ADDRESS_WIDTH-1) downto 0);    
+    en_intrpt : in std_logic_vector((INTRPT_BIT_WIDTH-1) downto 0);    
     -- to fetch        
     store_addr : out std_logic;
-    out_jump_addr : out std_logic_vector(7 downto 0);
+    out_jump_addr : out std_logic_vector((ADDRESS_WIDTH-1) downto 0);
     pc_cont_counting : out std_logic;
     pc_cont_processing : out std_logic
   );
@@ -80,11 +81,11 @@ architecture behav of interrupt_handler is
   signal sig_processor_stabilized_state : std_logic;  -- for stabilization of processor after interrupt has occured ( processor has written all pipelined instructions). 0 is stable 
   signal sig_processor_stabilized_next_state : std_logic;     
   signal sig_priority_handler_stabilized : std_logic; -- the priority handler has reached a steady state
-  signal sig_Din_reg : std_logic_vector(7 downto 0);
+  signal sig_Din_reg : std_logic_vector((DATA_WIDTH-1) downto 0);
   signal sig_wr_reg : std_logic;
-  signal sig_addr_reg : std_logic_vector(3 downto 0);
-  signal sig_ret_addr : std_logic_vector(7 downto 0);
-  signal sig_wr_count : std_logic_vector(3 downto 0); 
+  signal sig_addr_reg : std_logic_vector((REG_ADDR_WIDTH-1) downto 0);
+  signal sig_ret_addr : std_logic_vector((ADDRESS_WIDTH-1) downto 0);
+  signal sig_wr_count : std_logic_vector((REG_ADDR_WIDTH-1) downto 0); 
   signal sig_wr_count_en : std_logic;
   signal sig_wr_count_ld : std_logic;
   
@@ -92,14 +93,14 @@ architecture behav of interrupt_handler is
   signal sig_pc_cont_processing : std_logic;
   
   -- to synchronize the scratchpad
-  signal sig_wr_count_buffer : std_logic_vector(3 downto 0);
-  signal sig_wr_count_buffer_1 : std_logic_vector(3 downto 0);
-  signal sig_wr_count_buffer_2 : std_logic_vector(3 downto 0);
-  signal sig_wr_count_buffer_3 : std_logic_vector(3 downto 0);    
-  signal sig_wrback_count_buffer : std_logic_vector(3 downto 0);
-  signal sig_wrback_count_buffer_1 : std_logic_vector(3 downto 0);
-  signal sig_wrback_count_buffer_2 : std_logic_vector(3 downto 0);
-  signal sig_wrback_count_buffer_3 : std_logic_vector(3 downto 0);   
+  signal sig_wr_count_buffer : std_logic_vector((REG_ADDR_WIDTH-1) downto 0);
+  signal sig_wr_count_buffer_1 : std_logic_vector((REG_ADDR_WIDTH-1) downto 0);
+  signal sig_wr_count_buffer_2 : std_logic_vector((REG_ADDR_WIDTH-1) downto 0);
+  signal sig_wr_count_buffer_3 : std_logic_vector((REG_ADDR_WIDTH-1) downto 0);    
+  signal sig_wrback_count_buffer : std_logic_vector((REG_ADDR_WIDTH-1) downto 0);
+  signal sig_wrback_count_buffer_1 : std_logic_vector((REG_ADDR_WIDTH-1) downto 0);
+  signal sig_wrback_count_buffer_2 : std_logic_vector((REG_ADDR_WIDTH-1) downto 0);
+  signal sig_wrback_count_buffer_3 : std_logic_vector((REG_ADDR_WIDTH-1) downto 0);   
   
   -- priority handler state machine
   signal sig_current_intrpt : std_logic_vector(2 downto 0);
@@ -107,13 +108,13 @@ architecture behav of interrupt_handler is
   signal sig_in_intrpt : std_logic;
   signal sig_processor_stabilize_counter_en : std_logic;
   signal sig_processor_stabilize_ld : std_logic;
-  signal sig_processor_stabilize_count : std_logic_vector(3 downto 0);
+  signal sig_processor_stabilize_count : std_logic_vector((REG_ADDR_WIDTH-1) downto 0);
   
   -- writer state machine
   signal sig_next_writer_state : std_logic_vector(1 downto 0);
   signal sig_current_writer_state : std_logic_vector(1 downto 0);  
   
-  type intrpt_addr_array is array(0 to 3) of std_logic_vector(7 downto 0);
+  type intrpt_addr_array is array(0 to 3) of std_logic_vector((ADDRESS_WIDTH-1) downto 0);
   signal intrpt_addr : intrpt_addr_array := (others => (others => '0'));
   
     -- store which intrpts are enabled  
@@ -121,7 +122,7 @@ architecture behav of interrupt_handler is
   
   -- buffer for returning from interrupt
   signal RetI : std_logic;
-  signal RetI_Timer : std_logic_vector(3 downto 0) := x"0";
+  signal RetI_Timer : std_logic_vector((REG_ADDR_WIDTH-1) downto 0) := x"0";
   
   component counter
   generic(WIDTH : integer := 8);

@@ -30,7 +30,7 @@ end main_memory;
 
 architecture behavior of main_memory is
 type mem is array(255 downto 0) of std_logic_vector(7 downto 0);
-signal mem1_1 : mem; --Needs to be initialized
+signal mem1_1 : mem;
 
   
 begin
@@ -38,7 +38,10 @@ begin
   memory: process(clk)        
   begin
   
-  if(rising_edge(clk)) then
+  if(rst = '1') then
+    mem1_1 
+  
+  elsif(rising_edge(clk)) then
     
     correct_enable_A <= '0'; --Reset output enables
     correct_enable_B <= '0';

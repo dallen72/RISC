@@ -9,17 +9,15 @@ entity main_memory is
     
         clk: in std_logic;
         
+        ADDR_A, ADDR_B: in std_logic_vector(7 downto 0);
+        
         dirty_bit_A, dirty_bit_B: in std_logic; --Enables overwriting the value of the input memory address
-        request_A, request_B: in std_logic; --Used to request an address and value from Main Memory to Data Memory
         
         overwrite_address_A, overwrite_address_B: in std_logic_vector(7 downto 0); --Memory address being overwritten
         overwrite_value_A, overwrite_value_B: in std_logic_vector(7 downto 0); --Value to overwrite former value at overwrite_address
         
-        requested_address_A, requested_address_B: in std_logic_vector(7 downto 0); --Address being requested by Data Memory to Main Memory
-        
         request_response_value_A, request_response_value_B: out std_logic_vector(7 downto 0); --Value outputted when requested by Data Memory
         request_response_address_A, request_response_address_B: out std_logic_vector(7 downto 0); --Memory address outputted when requested by Data Memory
-        request_response_enable_A, request_response_enable_B: out std_logic; --Indicates the requested address and its associated value are being outputted
         
         correct_value_A, correct_value_B: out std_logic_vector(7 downto 0); --Value outputted to other Data Memory to keep consistency
         correct_address_A, correct_address_B: out std_logic_vector(7 downto 0); --Memory Address associated with correct_value
@@ -44,8 +42,6 @@ begin
     
     correct_enable_A <= '0'; --Reset output enables
     correct_enable_B <= '0';
-    request_response_enable_A <= '0';
-    request_response_enable_B <= '0';
   
     if(dirty_bit_A = '1') then --A value in Data Memory A has been changed. The value in Main Memory must be changed.
       
@@ -65,26 +61,18 @@ begin
       
     end if;
     
-    if(request_A = '1') then --Data Memory A is requesting an address and its value from Main Memory
-    
-      request_response_value_A <= mem1_1(conv_integer(requested_address_A)); --Return the requested value to Data Memory A
-      request_response_address_A <= requested_address_A; --Return the requested address to Data Memory A
-      request_response_enable_A <= '1'; --Indicate to Data Memory A that the requested information is being outputted
-      
-    end if;
-    
-    if(request_B = '1') then --Same as above, but for Data Memory B
-    
-      request_response_value_B <= mem1_1(conv_integer(requested_address_B));
-      request_response_address_B <= requested_address_B;
-      request_response_enable_B <= '1';
-      
-    end if;
-    
   end if;
   
   end process;
         
+  request: process(ADDR_A, ADDR_B)
+  begin
+    request_response_address_A <= ADDR_A;
+    request_response_address_B <= ADDR_B;
+    request_response_value_A <= mem1_1(conv_integer(ADDR_A));
+    request_response_value_B <= mem1_1(conv_integer(ADDR_B));
+  end process;
+  
 end behavior;
 
 

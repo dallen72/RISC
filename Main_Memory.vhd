@@ -33,48 +33,61 @@ architecture behavior of main_memory is
 type mem is array(255 downto 0) of std_logic_vector(7 downto 0);
 signal mem1_1 : mem;
 
+
   
 begin
         
-  memory: process(clk)        
+  memory: process(clk, dirty_bit_A)        
   begin
   
   if(rst = '1') then
     mem1_1 <= (others => (others => '0'));
-  
-  elsif(rising_edge(clk)) then
-    
     correct_enable_A <= '0'; --Reset output enables
     correct_enable_B <= '0';
+    correct_value_A <= (others => '0');    
+    correct_value_B <= (others => '0');
+    correct_address_A <= (others => '0'); 
+    correct_address_B <= (others => '0'); 
+           
+  
+  elsif(rising_edge(clk)) then
+
   
     if(dirty_bit_A = '1') then --A value in Data Memory A has been changed. The value in Main Memory must be changed.
-      
       mem1_1(conv_integer(overwrite_address_A)) <= overwrite_value_A; --Change the value in Main Memory
       correct_value_B <= overwrite_value_A; --Output the new value to Data Memory B for a consistency check
       correct_address_B <= overwrite_address_A; --Output the new value's address to Data Memory B for a consistency check
       correct_enable_B <= '1'; --Indicate to Data Memory B that a change has occurred to Main Memory at correct_address_B and, if it has that address, overwrite the value for that address with correct_value_B
-      
+    else
+      correct_enable_A <= '0';
     end if;
     
     if(dirty_bit_B = '1') then --Same as above, but from Data Memory B to Data Memory A
-      
       mem1_1(conv_integer(overwrite_address_B)) <= overwrite_value_B;
       correct_value_A <= overwrite_value_B;
       correct_address_A <= overwrite_address_B;
       correct_enable_A <= '1';
-      
+    else
+      correct_enable_B <= '0';      
     end if;
     
   end if;
   
   end process;
         
-  request: process(ADDR_A, ADDR_B)
+  request: process(ADDR_A, ADDR_B, clk)
   begin
-    request_response_address_A <= ADDR_A;
-    request_response_address_B <= ADDR_B;
-    request_response_value_A <= mem1_1(conv_integer(ADDR_A));
-    request_response_value_B <= mem1_1(conv_integer(ADDR_B));
+    if (rst = '1') then
+      request_response_address_A <= (others => '0');
+      request_response_address_B <= (others => '0');
+      request_response_value_A <= (others => '0');
+      request_response_value_B <= (others => '0');
+    elsif (rising_edge(clk)) then
+      request_response_address_A <= ADDR_A;
+      request_response_address_B <= ADDR_B;
+      request_response_value_A <= mem1_1(conv_integer(ADDR_A));
+      request_response_value_B <= mem1_1(conv_integer(ADDR_B));
+    end if;
   end process;
   
 end behavior;

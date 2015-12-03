@@ -48,7 +48,9 @@ use ieee.numeric_std.ALL;
 Entity MEMORY is
 generic (ADDRESS_WIDTH : integer := 8; WIDTH : integer := 8); -- number of address and data bits
 port (
+  rst : in std_logic;
   clk : in std_logic;
+  clk_stage : in std_logic;
   ADDR: in std_logic_vector (ADDRESS_WIDTH-1 downto 0);
   DIN: in std_logic_vector (WIDTH-1 downto 0); -- write data
   WR: in STD_LOGIC;  -- active high write enable
@@ -79,6 +81,7 @@ signal sig_pulse_wr_en : std_logic;
 
 Type dirty_bits is ARRAY (0 to (2**(ADDRESS_WIDTH-3))-1) of STD_LOGIC;-----------------------------------------------------------
 signal sig_db : dirty_bits := (others => '0');-------------------------------------------------------------------------------Array of dirty bits to accompany addresses in Data Memory
+signal sig_db_buffer : dirty_bits := (others => '0');
 
 Type addr_array is ARRAY (0 to (2**(ADDRESS_WIDTH-3))-1) of STD_LOGIC_VECTOR (WIDTH-1 downto 0); ------------------------------Array of addresses in Data Memory
 signal add_arr : addr_array := ("00000000", "00000001", "00000010", "00000011", "00000100", "00000101", "00000110", "00000111",
@@ -87,6 +90,10 @@ signal add_arr : addr_array := ("00000000", "00000001", "00000010", "00000011", 
                                 "00010110", "00010111", "00011000", "00011001", "00011010", "00011011", "00011100", "00011101");
 signal data_mem_ptr : integer := 0; --------------------------------------------------------------------------------------------Pointer used to select which address to overwrite in Data Memory when a new address is requested from Main Memory
 signal sig_invalid_mem_delay : std_logic;
+signal sig_WR : std_logic; -- signal for WR
+signal sig_MM_ADDRESS: std_logic_vector(7 downto 0);
+signal sig_MM_VALUE: std_logic_vector (WIDTH-1 downto 0);
+signal sig_MM_DB: std_logic;
 
 
 begin
@@ -95,7 +102,7 @@ begin
   variable var_pulse_written : std_logic;
   begin
     
-    if (WR = '0') then
+    if (sig_WR = '0') then
       var_pulse_written := '0';
     elsif (var_pulse_written = '1') then
       sig_pulse_wr_en <= '0';
@@ -105,25 +112,37 @@ begin
     end if;
   end process;
       
-  SYNC: process (clk, WR, rd)
-    variable need_request : std_logic;--------------------------------------------------------------------------------Used to indicate when a request is to be made
+  SYNC: process (clk, WR, rd, rst, clk_stage)
+    variable need_request : std_logic := '0';--------------------------------------------------------------------------------Used to indicate when a request is to be made
     
     begin
     
-    need_request := '1';----------------------------------------------------------------------------------------------------Reset need_request
-    MM_DB <= '0';-----------------------------------------------------------------------------------------------------------Reset MM_DB
     
-    if (falling_edge(clk)) then
+    
+    if (rst = '1') then
+      sig_WR <= '0';
+      need_request := '1';----------------------------------------------------------------------------------------------------Reset need_request
+      sig_MM_DB <= '0';-----------------------------------------------------------------------------------------------------------Reset MM_DB
+      data_mem_ptr <= 0;
+      sig_db <= (others => '0');
+      sig_db_buffer <= (others => '0'); 
+      sig_MM_ADDRESS <= (others => '0');
+      sig_MM_VALUE <= (others => '0');
+                 
+    elsif (falling_edge(clk)) then
+      sig_WR <= WR;
+      MM_ADDRESS <= sig_MM_ADDRESS;
+      MM_VALUE <= sig_MM_VALUE;
+      
       for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop
         if ((unsigned(add_arr(I)) = unsigned(ADDR))) then ------------------------------------------------------------------If the input ADDR matches any address in Data Memory, a request to Main Memory does not need to be made
           need_request := '0';
         end if;
       end loop;
-      
+      --- writing to memory
       if (correct_enable = '1') then------------------------------------------------------------------------------------------If a change has been made to Main Memory by the other processor...
         for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop
           if (unsigned(add_arr(I)) = unsigned(correct_address)) then
-            
             if (I = data_mem_ptr) then -- avoid collision
               sig_invalid_mem_delay <= '1';
               sig_mem(I) <= correct_value;--------------------------------------------------------------------------------------If the address for the changed value is in Data Memory, change to the new value
@@ -136,34 +155,44 @@ begin
               else
                 data_mem_ptr <= data_mem_ptr + 1;-----------------------------------------------------------------------Move pointer to next array location
               end if;
-            end if;
-                    
+            end if;       
           end if;
         end loop;
       elsif (need_request = '1') then-------------------------------------------------------------------------------If a request is made...
         sig_invalid_mem_delay <= '0';
         add_arr(data_mem_ptr) <= request_address;---------------------------------------------------------------Pointed to address is overwritten by address obtained from Main Memory
-        sig_mem(data_mem_ptr) <= request_value;-----------------------------------------------------------------Pointed to value is overwritten by value obtained from Main Memory
+      --  sig_mem(data_mem_ptr) <= request_value;-----------------------------------------------------------------Pointed to value is overwritten by value obtained from Main Memory
         if (data_mem_ptr = 31) then----------------------------------------------------------------------------If pointed exceeds maximum array location...
           data_mem_ptr <= 0;------------------------------------------------------------------------------------Reset pointer to 0
         else
           data_mem_ptr <= data_mem_ptr + 1;-----------------------------------------------------------------------Move pointer to next array location
         end if; 
+      elsif (sig_pulse_wr_en = '1') then
+        for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop
+          if (unsigned(add_arr(I)) = unsigned(ADDR)) then
+            sig_mem(I) <= DIN;
+            sig_db(I) <= '1';-------------------------------------------------------------------------------------------The dirty bit for the address goes high whenever the value in the address has been written to
+            sig_db_buffer(I) <= '1';
+          end if;
+        end loop;
+        for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop----------------------------------------------------------------------
+          if (sig_db(I) = '1') then -------------------------------------------------------------------------------------If a dirty bit is high...
+            MM_ADDRESS <= add_arr(I);-----------------------------------------------------------------------------------Output the address to Main Memory
+            MM_VALUE <= sig_mem(I);-------------------------------------------------------------------------------------Output the value to Main Memory
+            sig_db_buffer(I) <= '0';
+            sig_db(I) <= sig_db_buffer(I);------------------------------------------------------------------------------------------Reset the dirty bit
+            MM_DB <= '1';-----------------------------------------------------------------------------------------------Send a flag to Main Memory indicating a dirty bit has been found
+          end if;---------------------------------------------------------------------------------------------------------------
+        end loop;-----------------------------------------------------------------------------------------------------------
       else
+        MM_DB <= '0';-----------------------------------------------------------------------------------------------Send a flag to Main Memory indicating a dirty bit has been found
         sig_invalid_mem_delay <= '0';            
-      end if;
-      
+      end if;        
     end if;
     
     
-    if (sig_pulse_wr_en = '1') then
-      for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop
-        if (unsigned(add_arr(I)) = unsigned(ADDR)) then
-          sig_mem(I) <= DIN;
-          sig_db(I) <= '1';-------------------------------------------------------------------------------------------The dirty bit for the address goes high whenever the value in the address has been written to
-        end if;
-      end loop;
-    end if;
+    
+    
     
     if ( (rising_edge(clk)) and (rd = '1') ) then
       for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop
@@ -173,14 +202,6 @@ begin
       end loop;
     end if;
 
-  for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop----------------------------------------------------------------------
-    if (sig_db(I) = '1') then -------------------------------------------------------------------------------------If a dirty bit is high...
-       MM_ADDRESS <= add_arr(I);-----------------------------------------------------------------------------------Output the address to Main Memory
-       MM_VALUE <= sig_mem(I);-------------------------------------------------------------------------------------Output the value to Main Memory
-       sig_db(I) <= '0';------------------------------------------------------------------------------------------Reset the dirty bit
-       MM_DB <= '1';-----------------------------------------------------------------------------------------------Send a flag to Main Memory indicating a dirty bit has been found
-    end if;---------------------------------------------------------------------------------------------------------------
-  end loop;-----------------------------------------------------------------------------------------------------------
 
   
 
@@ -196,18 +217,14 @@ architecture behav of Writeback is
   signal sig_indirect_Din_X : std_logic_vector(7 downto 0); -- to delay X and Y for indirect instructions
   signal sig_indirect_Din_Y : std_logic_vector(7 downto 0);
   signal sig_branch_en : std_logic := '0';
+  signal sig_mem_addr : std_logic_vector(7 downto 0);
 
   -- signals for extra credit
-  signal correct_value: std_logic_vector(7 downto 0);-----------------------------------------------------------------------------
-  signal correct_address: std_logic_vector(7 downto 0);-------------------------------------------------------------------------
-  signal correct_enable: std_logic;--------------------------------------------------------------------------------------------------------
-  signal request_value : std_logic_vector(7 downto 0);
-  signal request_address: std_logic_vector(7 downto 0);
   signal request_enable: std_logic;
   signal MM_ADDRESS: std_logic_vector(7 downto 0);---------------------------------------------------------------------------------------
   signal MM_VALUE: std_logic_vector(7 downto 0);------------------------------------------------------------------------------------
   signal MM_DB: std_logic;
-  
+  signal sig_request_address : std_logic_vector(7 downto 0);  
   
 begin
   
@@ -215,32 +232,41 @@ begin
   mem1 : entity work.MEMORY
     generic map(ADDRESS_WIDTH => ADDRESS_WIDTH, WIDTH => DATA_WIDTH)
     port map(
+      rst => rst,
       clk => clk,
-      ADDR => mem_addr,
+      clk_stage => clk_stage,
+      ADDR => sig_mem_addr,
       DIN => sig_mem_din,
       WR => sig_mem_wr_en,
       rd => mem_rd_en,
       
-      correct_value => correct_value,--------------------------------------------------------------------------------------------
-      correct_address => correct_address,--------------------------------------------------------------------------------
-      correct_enable => correct_enable,--------------------------------------------------------------------------
+      correct_value => top_correct_value,--------------------------------------------------------------------------------------------
+      correct_address => top_correct_address,--------------------------------------------------------------------------------
+      correct_enable => top_correct_enable,--------------------------------------------------------------------------
       
-      request_value => request_value,
-      request_address => request_address,
+      request_value => top_request_value,
+      request_address => sig_request_address,
       
       DOUT => sig_mem_dout,
       
-      MM_ADDRESS => MM_ADDRESS,---------------------------------------------------------------------------
-      MM_VALUE => MM_VALUE,-------------------------------------------------------------------------------------------
-      MM_DB => MM_DB------------------------------------------------------------------------------------------------------------
+      MM_ADDRESS => top_MM_ADDRESS,---------------------------------------------------------------------------
+      MM_VALUE => top_MM_VALUE,-------------------------------------------------------------------------------------------
+      MM_DB => top_MM_DB------------------------------------------------------------------------------------------------------------
       
       
     );
     
     
-  SYNC: process(clk_stage, clk, opcode)
+  SYNC: process(clk_stage, clk, opcode, rst)
   begin
-    if (rising_edge(clk)) then
+    
+    if (rst = '1') then
+      sig_request_address <= (others => '0');      
+      sig_mem_addr <= (others => '0');       
+      
+    elsif (rising_edge(clk)) then
+
+      sig_mem_addr <= mem_addr;
       
       if (opcode(7 downto 4) = x"F") then -- tell the interrupt handler to return from interrupt
         RetI <= '1';

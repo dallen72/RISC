@@ -24,7 +24,15 @@ entity Writeback is
     reg_file_Din : out std_logic_vector(DATA_WIDTH-1 downto 0);
     reg_file_wr_addr : out std_logic_vector((ADDRESS_WIDTH/2)-1 downto 0);
     branch_en : out std_logic;
-    RetI : out std_logic    
+    RetI : out std_logic;
+    top_correct_value: in std_logic_vector(7 downto 0);
+    top_correct_address: in std_logic_vector (7 downto 0);
+    top_correct_enable: in std_logic;
+    top_request_value: in std_logic_vector (7 downto 0);
+    top_request_address : in std_logic_vector (7 downto 0);
+    top_MM_address : out std_logic_vector (7 downto 0);
+    top_MM_value : out std_logic_vector (7 downto 0);
+    top_MM_DB : out std_logic
   );
 end entity;
 
@@ -78,6 +86,8 @@ signal add_arr : addr_array := ("00000000", "00000001", "00000010", "00000011", 
                                 "00010000", "00010001", "00010010", "00010011", "00010011", "00010100", "00010100", "00010101",
                                 "00010110", "00010111", "00011000", "00011001", "00011010", "00011011", "00011100", "00011101");
 signal data_mem_ptr : integer := 0; --------------------------------------------------------------------------------------------Pointer used to select which address to overwrite in Data Memory when a new address is requested from Main Memory
+signal sig_invalid_mem_delay : std_logic;
+
 
 begin
       
@@ -110,23 +120,41 @@ begin
         end if;
       end loop;
       
-      if (need_request = '1') then-------------------------------------------------------------------------------If a request is made...
+      if (correct_enable = '1') then------------------------------------------------------------------------------------------If a change has been made to Main Memory by the other processor...
+        for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop
+          if (unsigned(add_arr(I)) = unsigned(correct_address)) then
+            
+            if (I = data_mem_ptr) then -- avoid collision
+              sig_invalid_mem_delay <= '1';
+              sig_mem(I) <= correct_value;--------------------------------------------------------------------------------------If the address for the changed value is in Data Memory, change to the new value
+            else
+              sig_mem(I) <= correct_value;--------------------------------------------------------------------------------------If the address for the changed value is in Data Memory, change to the new value              
+              add_arr(data_mem_ptr) <= request_address;---------------------------------------------------------------Pointed to address is overwritten by address obtained from Main Memory
+              sig_mem(data_mem_ptr) <= request_value;-----------------------------------------------------------------Pointed to value is overwritten by value obtained from Main Memory
+              if (data_mem_ptr = 31) then----------------------------------------------------------------------------If pointed exceeds maximum array location...
+                data_mem_ptr <= 0;------------------------------------------------------------------------------------Reset pointer to 0
+              else
+                data_mem_ptr <= data_mem_ptr + 1;-----------------------------------------------------------------------Move pointer to next array location
+              end if;
+            end if;
+                    
+          end if;
+        end loop;
+      elsif (need_request = '1') then-------------------------------------------------------------------------------If a request is made...
+        sig_invalid_mem_delay <= '0';
         add_arr(data_mem_ptr) <= request_address;---------------------------------------------------------------Pointed to address is overwritten by address obtained from Main Memory
         sig_mem(data_mem_ptr) <= request_value;-----------------------------------------------------------------Pointed to value is overwritten by value obtained from Main Memory
-        data_mem_ptr <= data_mem_ptr + 1;-----------------------------------------------------------------------Move pointer to next array location
-        if (data_mem_ptr = 32) then----------------------------------------------------------------------------If pointed exceeds maximum array location...
+        if (data_mem_ptr = 31) then----------------------------------------------------------------------------If pointed exceeds maximum array location...
           data_mem_ptr <= 0;------------------------------------------------------------------------------------Reset pointer to 0
-        end if;
+        else
+          data_mem_ptr <= data_mem_ptr + 1;-----------------------------------------------------------------------Move pointer to next array location
+        end if; 
+      else
+        sig_invalid_mem_delay <= '0';            
       end if;
+      
     end if;
     
-    if (correct_enable = '1') then------------------------------------------------------------------------------------------If a change has been made to Main Memory by the other processor...
-      for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop
-        if (unsigned(add_arr(I)) = unsigned(correct_address)) then
-          sig_mem(I) <= correct_value;--------------------------------------------------------------------------------------If the address for the changed value is in Data Memory, change to the new value
-        end if;
-      end loop;
-    end if;----------------------------------------------------------------------------------------------------------------
     
     if (sig_pulse_wr_en = '1') then
       for I in 0 to ((2**(ADDRESS_WIDTH-3))-1) loop
@@ -168,6 +196,8 @@ architecture behav of Writeback is
   signal sig_indirect_Din_X : std_logic_vector(7 downto 0); -- to delay X and Y for indirect instructions
   signal sig_indirect_Din_Y : std_logic_vector(7 downto 0);
   signal sig_branch_en : std_logic := '0';
+
+  -- signals for extra credit
   signal correct_value: std_logic_vector(7 downto 0);-----------------------------------------------------------------------------
   signal correct_address: std_logic_vector(7 downto 0);-------------------------------------------------------------------------
   signal correct_enable: std_logic;--------------------------------------------------------------------------------------------------------

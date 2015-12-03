@@ -7,6 +7,7 @@ entity main_memory is
   
   port(
     
+        rst : in std_logic;
         clk: in std_logic;
         
         ADDR_A, ADDR_B: in std_logic_vector(7 downto 0);
@@ -39,7 +40,7 @@ begin
   begin
   
   if(rst = '1') then
-    mem1_1 
+    mem1_1 <= (others => (others => '0'));
   
   elsif(rising_edge(clk)) then
     

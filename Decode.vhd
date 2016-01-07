@@ -83,6 +83,7 @@ begin
     
     else
       reg_file_Din_sel <= '0';
+      mem_wr_en <= '0';        
        
     end if;
     

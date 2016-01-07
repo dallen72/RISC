@@ -585,9 +585,9 @@ instruction <= "0000000000000000";
 elsif(counter = "11011011") then
 instruction <= "0000000000000000";
 elsif(counter = x"DC") then -- instruction 220
-instruction <= x"B203";  -- Store $r2, 3 (MEM[3] = 3)
+instruction <= x"B203";  -- Store $r2, 3 (MEM[3] = 2)
 elsif(counter = "11011101") then
-instruction <= "0000000000000000";
+instruction <= x"B130";  -- Store $r1, 48 (MEM[48] = 22)
 elsif(counter = "11011110") then
 instruction <= "0000000000000000";
 elsif(counter = "11011111") then

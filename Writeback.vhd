@@ -13,6 +13,7 @@ entity Writeback is
     clk_stage : in std_logic;
     Rx : in std_logic_vector((REG_ADDR_WIDTH)-1 downto 0);
     Ry : in std_logic_vector((REG_ADDR_WIDTH)-1 downto 0);
+    instruction : in std_logic_vector(15 downto 0);
     opcode : in std_logic_vector(DATA_WIDTH-1 downto 0);    
     mem_addr : in std_logic_vector(ADDRESS_WIDTH-1 downto 0); -- from execute
     ALU_output : in std_logic_vector(DATA_WIDTH-1 downto 0); -- from execute
@@ -51,6 +52,7 @@ port (
   rst : in std_logic;
   clk : in std_logic;
   clk_stage : in std_logic;
+  instruction : in std_logic_vector(15 downto 0);
   ADDR: in std_logic_vector (ADDRESS_WIDTH-1 downto 0);
   DIN: in std_logic_vector (WIDTH-1 downto 0); -- write data
   WR: in STD_LOGIC;  -- active high write enable
@@ -95,11 +97,16 @@ signal sig_MM_DB: std_logic;
 
 begin
       
-  WR_PULSE: process (clk)
+  WR_PULSE: process (clk, instruction, clk_stage)
   variable var_pulse_written : std_logic;
+  variable var_last_instruction : std_logic_vector(15 downto 0);
   begin
     
-    if (sig_WR = '0') then
+    if (rising_edge(clk_stage)) then
+      var_last_instruction := instruction;
+    end if;
+    
+    if ( (sig_WR = '0') or ((rising_edge(clk_stage))) ) then
       var_pulse_written := '0';
     elsif (var_pulse_written = '1') then
       sig_pulse_wr_en <= '0';
@@ -158,7 +165,7 @@ begin
       elsif (need_request = '1') then-------------------------------------------------------------------------------If a request is made...
         sig_invalid_mem_delay <= '0';
         add_arr(data_mem_ptr) <= request_address;---------------------------------------------------------------Pointed to address is overwritten by address obtained from Main Memory
-      --  sig_mem(data_mem_ptr) <= request_value;-----------------------------------------------------------------Pointed to value is overwritten by value obtained from Main Memory
+        sig_mem(data_mem_ptr) <= request_value;-----------------------------------------------------------------Pointed to value is overwritten by value obtained from Main Memory
         if (data_mem_ptr = 31) then----------------------------------------------------------------------------If pointed exceeds maximum array location...
           data_mem_ptr <= 0;------------------------------------------------------------------------------------Reset pointer to 0
         else
@@ -230,6 +237,7 @@ begin
       rst => rst,
       clk => clk,
       clk_stage => clk_stage,
+      instruction => instruction,
       ADDR => sig_mem_addr,
       DIN => sig_mem_din,
       WR => sig_mem_wr_en,
@@ -261,6 +269,7 @@ begin
       
     elsif (rising_edge(clk)) then
 
+      sig_request_address <= top_request_address;
       sig_mem_addr <= mem_addr;
       
       if (opcode(7 downto 4) = x"F") then -- tell the interrupt handler to return from interrupt
